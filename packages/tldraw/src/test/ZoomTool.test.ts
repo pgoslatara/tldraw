@@ -1,4 +1,5 @@
 import { createShapeId } from '@tldraw/editor'
+import { vi } from 'vitest'
 import { TestEditor } from './TestEditor'
 
 let editor: TestEditor
@@ -9,7 +10,7 @@ const ids = {
 	box3: createShapeId('box3'),
 }
 
-jest.useFakeTimers()
+vi.useFakeTimers()
 
 describe('TLSelectTool.Zooming', () => {
 	beforeEach(() => {
@@ -27,7 +28,7 @@ describe('TLSelectTool.Zooming', () => {
 		expect(editor.getViewportPageCenter()).toMatchObject({ x: 540, y: 360 })
 		editor.click()
 		editor.expectToBeIn('zoom.idle')
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(2)
 	})
 
@@ -38,7 +39,7 @@ describe('TLSelectTool.Zooming', () => {
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: -0, y: -0, w: 1080, h: 720 })
 		expect(editor.getViewportPageCenter()).toMatchObject({ x: 540, y: 360 })
 		editor.click()
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(0.5)
 	})
 
@@ -105,7 +106,7 @@ describe('TLSelectTool.Zooming', () => {
 		editor.expectToBeIn('zoom.zoom_brushing')
 		editor.pointerUp(change, change)
 		editor.expectToBeIn('zoom.idle')
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(2)
 		expect(editor.getViewportPageBounds()).toMatchObject({
 			x: change / 2,
@@ -139,7 +140,7 @@ describe('TLSelectTool.Zooming', () => {
 			h: newBoundsHeight,
 		})
 		editor.pointerUp(newBoundsX + newBoundsWidth, newBoundsY + newBoundsHeight)
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBeCloseTo(1.64)
 		expect(editor.getViewportPageBounds()).toMatchInlineSnapshot(`
 		Box {
@@ -178,7 +179,7 @@ describe('TLSelectTool.Zooming', () => {
 			h: newBoundsHeight,
 		})
 		editor.pointerUp()
-		jest.advanceTimersByTime(500)
+		vi.advanceTimersByTime(500)
 		expect(editor.getZoomLevel()).toBeCloseTo(originalZoomLevel / 2)
 		expect(editor.getViewportPageBounds()).toMatchObject({
 			x: -440,

@@ -1,7 +1,7 @@
 import { CDPSession, Page, expect } from '@playwright/test'
-import { Editor, sleep } from 'tldraw'
-import { setup } from '../shared-e2e'
-import test from './fixtures/fixtures'
+import { type Editor } from 'tldraw'
+import test from '../fixtures/fixtures'
+import { setupOrReset, sleep } from '../shared-e2e'
 
 declare const editor: Editor
 
@@ -80,12 +80,12 @@ const scrollZoom = async ({
 }
 
 test.describe('camera', () => {
-	test.beforeEach(setup)
+	test.beforeEach(setupOrReset)
 
 	test('panning', async ({ isMobile, page }) => {
 		test.skip(!isMobile)
 		client = await page.context().newCDPSession(page)
-		expect(await page.evaluate(() => editor.inputs.currentPagePoint)).toEqual({
+		expect(await page.evaluate(() => editor.inputs.getCurrentPagePoint())).toEqual({
 			x: 50,
 			y: 50,
 			z: 0,
@@ -106,10 +106,10 @@ test.describe('camera', () => {
 
 		// With current panning speed, the above gesture moves the camera by 36px on each axis
 		expect(
-			await page.evaluate(() => [
-				editor.inputs.currentPagePoint.x,
-				editor.inputs.currentPagePoint.y,
-			])
+			await page.evaluate(() => {
+				const point = editor.inputs.getCurrentPagePoint()
+				return [point.x, point.y]
+			})
 		).toStrictEqual([86, 86])
 	})
 
@@ -159,17 +159,17 @@ test.describe('camera', () => {
 			],
 			steps: 50,
 		})
-		expect(await page.evaluate(() => editor.getZoomLevel())).toBe(0.1)
+		expect(await page.evaluate(() => editor.getZoomLevel())).toBe(0.05)
 
 		// now zoom in
 		await multiTouchGesture({
 			start: [
-				{ x: 149, y: 149 },
-				{ x: 151, y: 151 },
+				{ x: 200, y: 200 },
+				{ x: 200, y: 200 },
 			],
 			end: [
 				{ x: 0, y: 0 },
-				{ x: 300, y: 300 },
+				{ x: 400, y: 400 },
 			],
 			steps: 50,
 		})

@@ -72,6 +72,8 @@ export async function fetchReleases() {
 						.replace(/<([^>]+)\/?>(?=\s|$)/g, '`<$1>`')
 						.replace(/`<image(.*) \/>`/g, '<image$1 />')
 						.replace(/`<img(.*) \/>`/g, '<img$1 />')
+						.replace(/`<(\/?)details>`/g, '<$1details>')
+						.replace(/`<(\/?)summary>`/g, '<$1summary>')
 						.replace(/\/\/>/g, '/>')
 
 					m += body
@@ -90,7 +92,7 @@ export async function fetchReleases() {
 				process.cwd(),
 				'content',
 				'getting-started',
-				'releases-versioning.mdx'
+				'releases.mdx'
 			)
 			const releasesPageContent = fs.readFileSync(releasesPagePath, 'utf-8')
 
@@ -104,7 +106,17 @@ export async function fetchReleases() {
 			const contentAfter = releasesPageContent.slice(endIndex + CHANGELOG_END_TAG.length)
 
 			const changelogIndexMarkdown = changelogIndex
-				.sort((a, b) => b.tagName.localeCompare(a.tagName))
+				.sort((a, b) => {
+					const versionA = a.tagName.replace(/^v/, '').split('.').map(Number)
+					const versionB = b.tagName.replace(/^v/, '').split('.').map(Number)
+
+					// Compare major version
+					if (versionB[0] !== versionA[0]) return versionB[0] - versionA[0]
+					// Compare minor version
+					if (versionB[1] !== versionA[1]) return versionB[1] - versionA[1]
+					// Compare patch version
+					return versionB[2] - versionA[2]
+				})
 				.map(({ body, tagName }, i) => {
 					if (i === 0) {
 						return (

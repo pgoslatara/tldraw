@@ -1,7 +1,7 @@
 import { safeParseUrl } from '@tldraw/editor'
 
 // Only allow multiplayer embeds. If we add additional routes later for example '/help' this won't match
-const TLDRAW_APP_RE = /(^\/r\/[^/]+\/?$)/
+const TLDRAW_APP_RE = /(^\/[f|p|r|ro|s|v]\/[^/]+\/?$)/
 
 /** @public */
 export const DEFAULT_EMBED_DEFINITIONS = [
@@ -20,6 +20,8 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			if (urlObj && urlObj.pathname.match(TLDRAW_APP_RE)) {
+				// Add the "clean=true" search param to the URL to hide the sidebar
+				urlObj.searchParams.append('embed', 'true')
 				return url
 			}
 			return
@@ -27,10 +29,13 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		fromEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			if (urlObj && urlObj.pathname.match(TLDRAW_APP_RE)) {
+				// Add the "clean=true" search param to the URL to hide the sidebar
+				urlObj.searchParams.delete('embed')
 				return url
 			}
 			return
 		},
+		embedOnPaste: false,
 	},
 	{
 		type: 'figma',
@@ -43,7 +48,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 			if (
 				!!url.match(
 					// eslint-disable-next-line no-useless-escape
-					/https:\/\/([\w\.-]+\.)?figma.com\/(file|proto)\/([0-9a-zA-Z]{22,128})(?:\/.*)?$/
+					/https:\/\/([\w\.-]+\.)?figma.com\/(file|proto|design)\/([0-9a-zA-Z]{22,128})(?:\/.*)?$/
 				) &&
 				!url.includes('figma.com/embed')
 			) {
@@ -61,6 +66,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 			}
 			return
 		},
+		embedOnPaste: true,
 	},
 	{
 		type: 'google_maps',
@@ -76,12 +82,18 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 			if (url.includes('/maps/embed?')) {
 				return url
 			} else if (url.includes('/maps/')) {
-				const match = url.match(/@(.*?),(.*?),(.*?)z/)
+				const match = url.match(/@(.*?),(.*?),(.*?)(z|m)/)
 				let result: string
 				if (match) {
-					const [, lat, lng, z] = match
+					const [, lat, lng, zoomOrMeters, mapTypeSymbol] = match
+					const mapType = mapTypeSymbol === 'z' ? 'roadmap' : 'satellite'
+					// Note: This meters to zoom equation is a rough approximation and not canonical.
+					const z =
+						mapType === 'roadmap'
+							? zoomOrMeters
+							: -Math.log2(parseInt(zoomOrMeters) / 14772321) / 0.8
 					const host = new URL(url).host.replace('www.', '')
-					result = `https://${host}/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GC_API_KEY}&center=${lat},${lng}&zoom=${z}`
+					result = `https://${host}/maps/embed/v1/view?key=${process.env.NEXT_PUBLIC_GC_API_KEY}&center=${lat},${lng}&zoom=${z}&maptype=${mapType}`
 				} else {
 					result = ''
 				}
@@ -96,12 +108,17 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 
 			const matches = urlObj.pathname.match(/^\/maps\/embed\/v1\/view\/?$/)
 			if (matches && urlObj.searchParams.has('center') && urlObj.searchParams.get('zoom')) {
-				const zoom = urlObj.searchParams.get('zoom')
+				const zoom = urlObj.searchParams.get('zoom') ?? '12'
+				const mapType = urlObj.searchParams.get('maptype') ?? 'roadmap'
+				// Note: This zoom to meters equation is a rough approximation and not canonical.
+				const zoomOrMeters =
+					mapType === 'roadmap' ? zoom : 14772321 * Math.pow(2, parseInt(zoom) * -0.8)
 				const [lat, lon] = urlObj.searchParams.get('center')!.split(',')
-				return `https://www.google.com/maps/@${lat},${lon},${zoom}z`
+				return `https://www.google.com/maps/@${lat},${lon},${zoomOrMeters}${mapType === 'roadmap' ? 'z' : 'm'}`
 			}
 			return
 		},
+		embedOnPaste: true,
 	},
 	{
 		type: 'val_town',
@@ -130,6 +147,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 			}
 			return
 		},
+		embedOnPaste: true,
 	},
 	{
 		type: 'codesandbox',
@@ -156,6 +174,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 			}
 			return
 		},
+		embedOnPaste: true,
 	},
 	{
 		type: 'codepen',
@@ -184,6 +203,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 			}
 			return
 		},
+		embedOnPaste: true,
 	},
 	{
 		type: 'scratch',
@@ -192,6 +212,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		width: 520,
 		height: 400,
 		doesResize: false,
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const SCRATCH_URL_REGEXP = /https?:\/\/scratch.mit.edu\/projects\/([^/]+)/
 			const matches = url.match(SCRATCH_URL_REGEXP)
@@ -223,6 +244,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 			'allow-popups-to-escape-sandbox': true,
 		},
 		isAspectRatioLocked: true,
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			if (!urlObj) return
@@ -230,13 +252,28 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 			const hostname = urlObj.hostname.replace(/^www./, '')
 			if (hostname === 'youtu.be') {
 				const videoId = urlObj.pathname.split('/').filter(Boolean)[0]
-				return `https://www.youtube.com/embed/${videoId}`
+				const searchParams = new URLSearchParams(urlObj.search)
+				const timeStart = searchParams.get('t')
+				if (timeStart) {
+					searchParams.set('start', timeStart)
+					searchParams.delete('t')
+				}
+				const search = searchParams.toString() ? '?' + searchParams.toString() : ''
+				return `https://www.youtube.com/embed/${videoId}${search}`
 			} else if (
 				(hostname === 'youtube.com' || hostname === 'm.youtube.com') &&
 				urlObj.pathname.match(/^\/watch/)
 			) {
 				const videoId = urlObj.searchParams.get('v')
-				return `https://www.youtube.com/embed/${videoId}`
+				const searchParams = new URLSearchParams(urlObj.search)
+				searchParams.delete('v')
+				const timeStart = searchParams.get('t')
+				if (timeStart) {
+					searchParams.set('start', timeStart)
+					searchParams.delete('t')
+				}
+				const search = searchParams.toString() ? '?' + searchParams.toString() : ''
+				return `https://www.youtube.com/embed/${videoId}${search}`
 			}
 			return
 		},
@@ -248,7 +285,14 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 			if (hostname === 'youtube.com') {
 				const matches = urlObj.pathname.match(/^\/embed\/([^/]+)\/?/)
 				if (matches) {
-					return `https://www.youtube.com/watch?v=${matches[1]}`
+					const params = new URLSearchParams(urlObj.search)
+					params.set('v', matches?.[1] ?? '')
+					const timeStart = params.get('start')
+					if (timeStart) {
+						params.set('t', timeStart)
+						params.delete('start')
+					}
+					return `https://www.youtube.com/watch?${params.toString()}`
 				}
 			}
 			return
@@ -267,6 +311,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		overridePermissions: {
 			'allow-popups-to-escape-sandbox': true,
 		},
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			const cidQs = urlObj?.searchParams.get('cid')
@@ -311,6 +356,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		overridePermissions: {
 			'allow-popups-to-escape-sandbox': true,
 		},
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 
@@ -345,6 +391,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		width: 720,
 		height: 500,
 		doesResize: true,
+		embedOnPaste: true,
 		// Security warning:
 		// Gists allow adding .json extensions to the URL which return JSONP.
 		// Furthermore, the JSONP can include callbacks that execute arbitrary JavaScript.
@@ -377,10 +424,12 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		width: 720,
 		height: 500,
 		doesResize: true,
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			if (urlObj && urlObj.pathname.match(/\/@([^/]+)\/([^/]+)/)) {
-				return `${url}?embed=true`
+				urlObj.searchParams.append('embed', 'true')
+				return urlObj.href
 			}
 			return
 		},
@@ -404,6 +453,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		width: 720,
 		height: 500,
 		doesResize: true,
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			if (urlObj && urlObj.pathname.match(/^\/map\//)) {
@@ -429,6 +479,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		minHeight: 500,
 		overrideOutlineRadius: 12,
 		doesResize: true,
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			if (urlObj && urlObj.pathname.match(/^\/(artist|album)\//)) {
@@ -452,6 +503,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		height: 360,
 		doesResize: true,
 		isAspectRatioLocked: true,
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			if (urlObj && urlObj.hostname === 'vimeo.com') {
@@ -475,29 +527,6 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		},
 	},
 	{
-		type: 'excalidraw',
-		title: 'Excalidraw',
-		hostnames: ['excalidraw.com'],
-		width: 720,
-		height: 500,
-		doesResize: true,
-		isAspectRatioLocked: true,
-		toEmbedUrl: (url) => {
-			const urlObj = safeParseUrl(url)
-			if (urlObj && urlObj.hash.match(/#room=/)) {
-				return url
-			}
-			return
-		},
-		fromEmbedUrl: (url) => {
-			const urlObj = safeParseUrl(url)
-			if (urlObj && urlObj.hash.match(/#room=/)) {
-				return url
-			}
-			return
-		},
-	},
-	{
 		type: 'observable',
 		title: 'Observable',
 		hostnames: ['observablehq.com'],
@@ -506,6 +535,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		doesResize: true,
 		isAspectRatioLocked: false,
 		backgroundColor: '#fff',
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			if (urlObj && urlObj.pathname.match(/^\/@([^/]+)\/([^/]+)\/?$/)) {
@@ -537,6 +567,7 @@ export const DEFAULT_EMBED_DEFINITIONS = [
 		width: 700,
 		height: 450,
 		doesResize: true,
+		embedOnPaste: true,
 		toEmbedUrl: (url) => {
 			const urlObj = safeParseUrl(url)
 			if (
@@ -595,7 +626,7 @@ export const embedShapePermissionDefaults = {
 	// [REASON] We want to allow embeds to link back to their original sites (e.g. YouTube).
 	'allow-popups': true,
 	// [MDN] Lets the sandboxed document open new windows without those windows inheriting the sandboxing. For example, this can safely sandbox an advertisement without forcing the same restrictions upon the page the ad links to.
-	// [REASON] We shouldn't allow popups as a embed could pretend to be us by opening a mocked version of tldraw. This is very unobvious when it is performed as an action within our app.
+	// [REASON] We shouldn't allow popups as an embed could pretend to be us by opening a mocked version of tldraw. This is very unobvious when it is performed as an action within our app.
 	'allow-popups-to-escape-sandbox': false,
 	// [MDN] Lets the resource start a presentation session.
 	// [REASON] Prevents embed from navigating away from tldraw and pretending to be us.
@@ -637,6 +668,8 @@ export interface EmbedDefinition {
 	readonly overridePermissions?: TLEmbedShapePermissions
 	readonly instructionLink?: string
 	readonly backgroundColor?: string
+	readonly embedOnPaste?: boolean
+	readonly canEditWhileLocked?: boolean
 	// TODO: FIXME this is ugly be required because some embeds have their own border radius for example spotify embeds
 	readonly overrideOutlineRadius?: number
 	// eslint-disable-next-line @typescript-eslint/method-signature-style

@@ -29,7 +29,7 @@ export interface TLStoreBaseOptions {
 	/** How should this store upload & resolve assets? */
 	assets?: TLAssetStore
 
-	/** Called when the store is connected to an {@link Editor}. */
+	/** Called when the store is connected to an {@link @tldraw/editor#Editor}. */
 	onMount?(editor: Editor): void | (() => void)
 }
 
@@ -119,6 +119,7 @@ export function createTLStore({
 			assets: {
 				upload: assets.upload,
 				resolve: assets.resolve ?? defaultAssetResolve,
+				remove: assets.remove ?? (() => Promise.resolve()),
 			},
 			onMount: (editor) => {
 				assert(editor instanceof Editor)

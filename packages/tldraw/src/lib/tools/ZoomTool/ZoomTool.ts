@@ -62,7 +62,7 @@ export class ZoomTool extends StateNode {
 	}
 
 	private updateCursor() {
-		if (this.editor.inputs.altKey && !this.info.isQuickZoom) {
+		if (this.editor.inputs.getAltKey() && !this.info.isQuickZoom) {
 			this.editor.setCursor({ type: 'zoom-out', rotation: 0 })
 		} else {
 			this.editor.setCursor({ type: 'zoom-in', rotation: 0 })
