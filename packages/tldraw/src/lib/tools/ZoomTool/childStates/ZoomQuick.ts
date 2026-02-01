@@ -16,13 +16,15 @@ export class ZoomQuick extends StateNode {
 		this.didZoom = false
 		this.initialViewport = editor.getViewportPageBounds()
 
-		// Zoom out to 5%, keeping the cursor over the same page point
+		// Zoom out to 5%, keeping the cursor over the same page point.
+		// To maintain the cursor position, we adjust the camera by the difference
+		// in how the cursor offset scales between the old and new zoom levels.
 		const { x: cx, y: cy, z: cz } = editor.getCamera()
-		const point = editor.inputs.getCurrentScreenPoint()
+		const { x: sx, y: sy } = editor.inputs.getCurrentScreenPoint()
 		const newZoom = 0.05
 		editor.setCamera({
-			x: cx + (point.x / newZoom - point.x) - (point.x / cz - point.x),
-			y: cy + (point.y / newZoom - point.y) - (point.y / cz - point.y),
+			x: cx + sx * (1 / newZoom - 1 / cz),
+			y: cy + sy * (1 / newZoom - 1 / cz),
 			z: newZoom,
 		})
 
@@ -63,21 +65,14 @@ export class ZoomQuick extends StateNode {
 		const { editor } = this
 
 		const screenBounds = editor.getViewportScreenBounds()
+		const zoom = editor.getZoomLevel()
 
-		const maxScreenFactor = 4
-		const brushWidth = Math.min(
-			screenBounds.w / editor.getZoomLevel() / maxScreenFactor / 2,
-			this.initialViewport.w / 2
-		)
-		const brushHeight = Math.min(
-			screenBounds.h / editor.getZoomLevel() / maxScreenFactor / 2,
-			this.initialViewport.h / 2
-		)
+		// Brush is at most 1/4 of screen size (in page coordinates), clamped to initial viewport
+		const brushW = Math.min(screenBounds.w / zoom / 4, this.initialViewport.w)
+		const brushH = Math.min(screenBounds.h / zoom / 4, this.initialViewport.h)
 
-		const currentPagePoint = editor.inputs.getCurrentPagePoint()
-		const topLeft = currentPagePoint.clone().addXY(-brushWidth, -brushHeight)
-		const bottomRight = currentPagePoint.clone().addXY(brushWidth, brushHeight)
-		this.zoomBrush = Box.FromPoints([topLeft, bottomRight])
+		const { x, y } = editor.inputs.getCurrentPagePoint()
+		this.zoomBrush = new Box(x - brushW / 2, y - brushH / 2, brushW, brushH)
 		editor.updateInstanceState({ zoomBrush: this.zoomBrush.toJson() })
 	}
 
@@ -88,8 +83,6 @@ export class ZoomQuick extends StateNode {
 		const newViewport = this.zoomBrush ?? this.initialViewport
 		editor.zoomToBounds(newViewport, { inset: 0 })
 
-		this.zoomBrush = null
-		editor.updateInstanceState({ zoomBrush: null })
 		this.didZoom = true
 	}
 }
