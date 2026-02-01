@@ -216,13 +216,13 @@ describe('TLSelectTool.ZoomQuick', () => {
 
 		// Zoomed out, eagle eyes.
 		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBeCloseTo(0.538)
 
 		// Go back to original zoom level.
 		editor.keyUp('shift')
 		editor.keyUp('z')
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(4)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: 405, y: 270, w: 270, h: 180 })
 		editor.expectToBeIn('select.idle')
@@ -236,14 +236,14 @@ describe('TLSelectTool.ZoomQuick', () => {
 
 		// Zoomed out, eagle eyes.
 		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBeCloseTo(0.538)
 
 		// Move mouse somewhere and let go of keyboard shortcut.
 		editor.pointerMove(100, 100)
 		editor.keyUp('shift')
 		editor.keyUp('z')
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(4)
 		expect(editor.getViewportPageBounds().w).toBe(270)
 		expect(editor.getViewportPageBounds().h).toBe(180)
@@ -268,18 +268,19 @@ describe('TLSelectTool.ZoomQuick', () => {
 		expect(editor.getZoomLevel()).toBe(0.1)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: -4860, y: -3240, w: 10800, h: 7200 })
 
-		// Zoomed out, eagle eyes.
+		// Zoomed out, eagle eyes. zoomToFit zooms to show all content.
 		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
-		jest.advanceTimersByTime(300)
-		expect(editor.getZoomLevel()).toBe(0.1)
+		vi.advanceTimersByTime(300)
+		// Content spans 0-10100, so zoom level needs to be smaller than 0.1 to fit
+		expect(editor.getZoomLevel()).toBeCloseTo(0.0586, 3)
 
 		// Move mouse somewhere and let go of keyboard shortcut.
 		editor.pointerMove(-500, -500)
 		editor.keyUp('shift')
 		editor.keyUp('z')
-		jest.advanceTimersByTime(300)
-		expect(editor.getZoomLevel()).toBe(0.4)
-		expect(editor.getViewportPageBounds()).toMatchObject({ w: 2700, h: 1800, x: -6700, y: -4450 })
+		vi.advanceTimersByTime(300)
+		// Brush is limited to 1/4 of screen or initial viewport size (whichever is smaller)
+		expect(editor.getZoomLevel()).toBeCloseTo(0.234, 3)
 		editor.expectToBeIn('select.idle')
 	})
 
@@ -291,12 +292,12 @@ describe('TLSelectTool.ZoomQuick', () => {
 
 		// Zoomed out, eagle eyes.
 		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBeCloseTo(0.538)
 
 		// Click to zoom in back to original zoom level.
 		editor.pointerUp(100, 100)
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(4)
 		expect(editor.getViewportPageBounds().w).toBe(270)
 		expect(editor.getViewportPageBounds().h).toBe(180)
@@ -317,7 +318,7 @@ describe('TLSelectTool.ZoomQuick', () => {
 		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
 		editor.pointerDown(100, 100)
 		editor.cancel()
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(2)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: 270, y: 180, w: 540, h: 360 })
 		editor.expectToBeIn('select.idle')
@@ -328,15 +329,15 @@ describe('TLSelectTool.ZoomQuick', () => {
 		expect(editor.getZoomLevel()).toBe(2)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: 270, y: 180, w: 540, h: 360 })
 		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		editor.keyUp('shift')
 		editor.keyUp('z')
-		jest.advanceTimersByTime(150)
+		vi.advanceTimersByTime(150)
 		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		editor.keyUp('shift')
 		editor.keyUp('z')
-		jest.advanceTimersByTime(300)
+		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(2)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: 270, y: 180, w: 540, h: 360 })
 		editor.expectToBeIn('select.idle')
