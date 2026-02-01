@@ -1,6 +1,4 @@
-import { Box, StateNode, TLKeyboardEventInfo, TLPointerEventInfo, Vec } from '@tldraw/editor'
-
-const ANIMATION_DURATION = 220
+import { Box, StateNode, TLKeyboardEventInfo, TLPointerEventInfo } from '@tldraw/editor'
 
 export class ZoomQuick extends StateNode {
 	static override id = 'zoom_quick'
@@ -8,52 +6,37 @@ export class ZoomQuick extends StateNode {
 	info = {} as TLPointerEventInfo & { onInteractionEnd?: string }
 
 	didZoom = false
-	keysPressed: string[] = []
 	zoomBrush = null as Box | null
 	initialViewport = new Box()
-	originScreenPoint = null as null | Vec
-	viewportInFlightFromPreviousQuickZoom = null as null | Box
-	previousZoomTimeout = null as null | number
 
 	override onEnter(info: TLPointerEventInfo & { onInteractionEnd: string }) {
+		const { editor } = this
 		this.info = info
 		this.zoomBrush = null
-		this.keysPressed = ['z', 'shift']
 		this.didZoom = false
-		this.originScreenPoint = this.editor.inputs.currentScreenPoint.clone()
+		this.initialViewport = editor.getViewportPageBounds()
 
-		// So, technically, upon releasing the Z key we will be taking 220ms to zoom to the new spot.
-		// However, if you press Z again in the meantime, we need to finish that previous animation so
-		// that we can accurately start the new state cycle.
-		if (this.viewportInFlightFromPreviousQuickZoom) {
-			this.editor.zoomToBounds(this.viewportInFlightFromPreviousQuickZoom, {
-				inset: 0,
-				immediate: true,
-			})
-			this.initialViewport = this.viewportInFlightFromPreviousQuickZoom
-			if (this.previousZoomTimeout) {
-				clearTimeout(this.previousZoomTimeout)
-			}
-			this.viewportInFlightFromPreviousQuickZoom = null
-		} else {
-			this.initialViewport = this.editor.getViewportPageBounds()
-		}
+		// Zoom out to 5%, keeping the cursor over the same page point
+		const { x: cx, y: cy, z: cz } = editor.getCamera()
+		const point = editor.inputs.getCurrentScreenPoint()
+		const newZoom = 0.05
+		editor.setCamera({
+			x: cx + (point.x / newZoom - point.x) - (point.x / cz - point.x),
+			y: cy + (point.y / newZoom - point.y) - (point.y / cz - point.y),
+			z: newZoom,
+		})
 
-		// Zoom out to fit the entire canvas in the viewport.
-		this.editor.zoomToFit({ animation: { duration: ANIMATION_DURATION } })
+		// Show the viewport brush immediately
+		this.updateBrush()
 	}
 
 	override onExit() {
+		this.zoomToNewViewport()
 		this.editor.updateInstanceState({ zoomBrush: null })
 	}
 
 	override onPointerMove() {
-		if (
-			this.zoomBrush ||
-			!Vec.DistMin(this.editor.inputs.currentScreenPoint, this.originScreenPoint!, 16)
-		) {
-			this.updateBrush()
-		}
+		this.updateBrush()
 	}
 
 	override onPointerUp() {
@@ -62,86 +45,51 @@ export class ZoomQuick extends StateNode {
 	}
 
 	override onCancel() {
-		this.cancel()
+		// Clear brush so onExit zooms back to initial viewport
+		this.zoomBrush = null
+		this.editor.updateInstanceState({ zoomBrush: null })
+		// Exit the zoom tool entirely
+		this.editor.setCurrentTool('select')
 	}
 
 	override onKeyUp(info: TLKeyboardEventInfo) {
-		// We have to wait until both Shift and Z are released in non-Quick Zoom's case.
-		// N.B. 'Ω' is Alt-Z on Mac, which can happen if you release Shift before the Alt+Z.
-		this.keysPressed = this.keysPressed.filter((key) =>
-			info.key === 'Ω' ? key !== 'z' : key !== info.key.toLowerCase()
-		)
-
-		if (this.keysPressed.length === 0) {
-			this.complete()
+		if (info.key === 'Shift') {
+			this.parent.transition('idle', this.info)
 		}
 	}
 
 	private updateBrush() {
-		// If we did a proactive click to zoom, we still have the keyUp event that triggers the zoom, don't update anymore.
 		if (this.didZoom) return
+		const { editor } = this
 
-		const {
-			inputs: { currentPagePoint },
-		} = this.editor
+		const screenBounds = editor.getViewportScreenBounds()
 
-		const screenBounds = this.editor.getViewportScreenBounds()
-
-		// Don't have an enormous brush, max out to 1/4 of the screen size.
 		const maxScreenFactor = 4
 		const brushWidth = Math.min(
-			screenBounds.w / this.editor.getZoomLevel() / maxScreenFactor / 2,
+			screenBounds.w / editor.getZoomLevel() / maxScreenFactor / 2,
 			this.initialViewport.w / 2
 		)
 		const brushHeight = Math.min(
-			screenBounds.h / this.editor.getZoomLevel() / maxScreenFactor / 2,
+			screenBounds.h / editor.getZoomLevel() / maxScreenFactor / 2,
 			this.initialViewport.h / 2
 		)
 
+		const currentPagePoint = editor.inputs.getCurrentPagePoint()
 		const topLeft = currentPagePoint.clone().addXY(-brushWidth, -brushHeight)
 		const bottomRight = currentPagePoint.clone().addXY(brushWidth, brushHeight)
 		this.zoomBrush = Box.FromPoints([topLeft, bottomRight])
-		this.editor.updateInstanceState({ zoomBrush: this.zoomBrush.toJson() })
-	}
-
-	private cancel() {
-		// If canceled, revert back to the original location and zoom level.
-		this.zoomBrush = null
-		this.editor.updateInstanceState({ zoomBrush: null })
-		this.zoomToNewViewport()
-		this.transitionBacktoPreviousTool()
+		editor.updateInstanceState({ zoomBrush: this.zoomBrush.toJson() })
 	}
 
 	private zoomToNewViewport() {
-		// If we did a proactive click to zoom, we still have the keyUp event that triggers the zoom, don't do it twice.
 		if (this.didZoom) return
+		const { editor } = this
 
-		// Go to the new location, or revert back to the original location and zoom level.
 		const newViewport = this.zoomBrush ?? this.initialViewport
-		this.editor.zoomToBounds(newViewport, { inset: 0, animation: { duration: ANIMATION_DURATION } })
-
-		// See in onEnter on why we do this.
-		this.viewportInFlightFromPreviousQuickZoom = newViewport
-		this.previousZoomTimeout = this.editor.timers.setTimeout(() => {
-			this.viewportInFlightFromPreviousQuickZoom = null
-		}, ANIMATION_DURATION + 33 /* fudge an extra frame */)
+		editor.zoomToBounds(newViewport, { inset: 0 })
 
 		this.zoomBrush = null
-		this.editor.updateInstanceState({ zoomBrush: null })
+		editor.updateInstanceState({ zoomBrush: null })
 		this.didZoom = true
-	}
-
-	private complete() {
-		this.zoomToNewViewport()
-		this.transitionBacktoPreviousTool()
-	}
-
-	private transitionBacktoPreviousTool() {
-		// Go back to the previous tool. If we are already in select we want to transition to idle
-		if (this.info.onInteractionEnd && this.info.onInteractionEnd !== 'select') {
-			this.editor.setCurrentTool(this.info.onInteractionEnd, this.info)
-		} else {
-			this.editor.setCurrentTool('select')
-		}
 	}
 }

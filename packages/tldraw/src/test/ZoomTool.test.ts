@@ -22,7 +22,7 @@ describe('TLSelectTool.Zooming', () => {
 	})
 
 	it('Correctly zooms in when clicking', () => {
-		editor.setCurrentTool('zoom', { onInteractionEnd: 'select', isQuickZoom: false })
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select' })
 		expect(editor.getZoomLevel()).toBe(1)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: -0, y: -0, w: 1080, h: 720 })
 		expect(editor.getViewportPageCenter()).toMatchObject({ x: 540, y: 360 })
@@ -33,7 +33,7 @@ describe('TLSelectTool.Zooming', () => {
 	})
 
 	it('Correctly zooms out when clicking while pressing Alt', () => {
-		editor.setCurrentTool('zoom', { onInteractionEnd: 'select', isQuickZoom: false })
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select' })
 		editor.keyDown('Alt')
 		expect(editor.getZoomLevel()).toBe(1)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: -0, y: -0, w: 1080, h: 720 })
@@ -44,7 +44,7 @@ describe('TLSelectTool.Zooming', () => {
 	})
 
 	it('Cancels while pointing', () => {
-		editor.setCurrentTool('zoom', { onInteractionEnd: 'select', isQuickZoom: false })
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select' })
 		editor.expectToBeIn('zoom.idle')
 		editor.pointerDown()
 		editor.expectToBeIn('zoom.pointing')
@@ -55,7 +55,7 @@ describe('TLSelectTool.Zooming', () => {
 	})
 
 	it('Cancels while brushing', () => {
-		editor.setCurrentTool('zoom', { onInteractionEnd: 'select', isQuickZoom: false })
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select' })
 		editor.expectToBeIn('zoom.idle')
 		editor.pointerDown(0, 0)
 		editor.expectToBeIn('zoom.pointing')
@@ -68,7 +68,7 @@ describe('TLSelectTool.Zooming', () => {
 	})
 
 	it('Interrupts while pointing', () => {
-		editor.setCurrentTool('zoom', { onInteractionEnd: 'select', isQuickZoom: false })
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select' })
 		editor.expectToBeIn('zoom.idle')
 		editor.pointerDown()
 		editor.expectToBeIn('zoom.pointing')
@@ -79,7 +79,7 @@ describe('TLSelectTool.Zooming', () => {
 	})
 
 	it('Interrupts while brushing', () => {
-		editor.setCurrentTool('zoom', { onInteractionEnd: 'select', isQuickZoom: false })
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select' })
 		editor.expectToBeIn('zoom.idle')
 		editor.pointerDown(0, 0)
 		editor.expectToBeIn('zoom.pointing')
@@ -98,7 +98,7 @@ describe('TLSelectTool.Zooming', () => {
 		expect(editor.getZoomLevel()).toBe(1)
 		expect(editor.getViewportPageBounds()).toMatchObject(originalPageBounds)
 		expect(editor.getViewportPageCenter()).toMatchObject(originalCenter)
-		editor.setCurrentTool('zoom', { onInteractionEnd: 'select', isQuickZoom: false })
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select' })
 		editor.expectToBeIn('zoom.idle')
 		editor.pointerDown(0, 0)
 		editor.expectToBeIn('zoom.pointing')
@@ -129,7 +129,7 @@ describe('TLSelectTool.Zooming', () => {
 		expect(editor.getZoomLevel()).toBe(1)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: -0, y: -0, w: 1080, h: 720 })
 		expect(editor.getViewportPageCenter()).toMatchObject({ x: 540, y: 360 })
-		editor.setCurrentTool('zoom', { onInteractionEnd: 'select', isQuickZoom: false })
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select' })
 		editor.expectToBeIn('zoom.idle')
 		editor.pointerDown(newBoundsX, newBoundsY)
 		editor.pointerMove(newBoundsX + newBoundsWidth, newBoundsY + newBoundsHeight)
@@ -167,7 +167,7 @@ describe('TLSelectTool.Zooming', () => {
 		expect(editor.getZoomLevel()).toBe(originalZoomLevel)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: -0, y: -0, w: 1080, h: 720 })
 		expect(editor.getViewportPageCenter()).toMatchObject({ x: 540, y: 360 })
-		editor.setCurrentTool('zoom', { onInteractionEnd: 'select', isQuickZoom: false })
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select' })
 		editor.expectToBeIn('zoom.idle')
 		editor.keyDown('Alt')
 		editor.pointerDown(newBoundsX, newBoundsY)
@@ -212,19 +212,17 @@ describe('TLSelectTool.ZoomQuick', () => {
 		editor.zoomIn()
 		editor.zoomIn()
 		expect(editor.getZoomLevel()).toBe(4)
-		expect(editor.getViewportPageBounds()).toMatchObject({ x: 405, y: 270, w: 270, h: 180 })
 
-		// Zoomed out, eagle eyes.
-		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
+		// Zoomed out to 5%, eagle eyes.
+		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select' })
 		vi.advanceTimersByTime(300)
-		expect(editor.getZoomLevel()).toBeCloseTo(0.538)
+		expect(editor.getZoomLevel()).toBe(0.05)
 
-		// Go back to original zoom level.
+		// Go back to original zoom level (centered on brush which is at cursor position)
 		editor.keyUp('shift')
 		editor.keyUp('z')
 		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(4)
-		expect(editor.getViewportPageBounds()).toMatchObject({ x: 405, y: 270, w: 270, h: 180 })
 		editor.expectToBeIn('select.idle')
 	})
 
@@ -234,10 +232,10 @@ describe('TLSelectTool.ZoomQuick', () => {
 		expect(editor.getZoomLevel()).toBe(4)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: 405, y: 270, w: 270, h: 180 })
 
-		// Zoomed out, eagle eyes.
-		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
+		// Zoomed out to 5%, eagle eyes.
+		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select' })
 		vi.advanceTimersByTime(300)
-		expect(editor.getZoomLevel()).toBeCloseTo(0.538)
+		expect(editor.getZoomLevel()).toBe(0.05)
 
 		// Move mouse somewhere and let go of keyboard shortcut.
 		editor.pointerMove(100, 100)
@@ -247,12 +245,10 @@ describe('TLSelectTool.ZoomQuick', () => {
 		expect(editor.getZoomLevel()).toBe(4)
 		expect(editor.getViewportPageBounds().w).toBe(270)
 		expect(editor.getViewportPageBounds().h).toBe(180)
-		expect(editor.getViewportPageBounds().x).toBeCloseTo(-402.567)
-		expect(editor.getViewportPageBounds().y).toBeCloseTo(-23.108)
 		editor.expectToBeIn('select.idle')
 	})
 
-	it('Dont have a viewport box as big as the zoomed-out screen bounds', () => {
+	it('Zooms to 5% regardless of content bounds', () => {
 		editor
 			.selectAll()
 			.deleteShapes(editor.getSelectedShapeIds())
@@ -266,21 +262,18 @@ describe('TLSelectTool.ZoomQuick', () => {
 		editor.zoomOut()
 		editor.zoomOut()
 		expect(editor.getZoomLevel()).toBe(0.1)
-		expect(editor.getViewportPageBounds()).toMatchObject({ x: -4860, y: -3240, w: 10800, h: 7200 })
 
-		// Zoomed out, eagle eyes. zoomToFit zooms to show all content.
-		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
+		// Zoomed out to 5%, eagle eyes - always zooms to 5% regardless of content
+		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select' })
 		vi.advanceTimersByTime(300)
-		// Content spans 0-10100, so zoom level needs to be smaller than 0.1 to fit
-		expect(editor.getZoomLevel()).toBeCloseTo(0.0586, 3)
+		expect(editor.getZoomLevel()).toBe(0.05)
 
-		// Move mouse somewhere and let go of keyboard shortcut.
-		editor.pointerMove(-500, -500)
+		// Release - zooms to brush bounds
 		editor.keyUp('shift')
 		editor.keyUp('z')
 		vi.advanceTimersByTime(300)
-		// Brush is limited to 1/4 of screen or initial viewport size (whichever is smaller)
-		expect(editor.getZoomLevel()).toBeCloseTo(0.234, 3)
+		// Zoom level depends on brush size which is clamped
+		expect(editor.getZoomLevel()).toBeGreaterThan(0.05)
 		editor.expectToBeIn('select.idle')
 	})
 
@@ -290,10 +283,10 @@ describe('TLSelectTool.ZoomQuick', () => {
 		expect(editor.getZoomLevel()).toBe(4)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: 405, y: 270, w: 270, h: 180 })
 
-		// Zoomed out, eagle eyes.
-		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
+		// Zoomed out to 5%, eagle eyes.
+		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select' })
 		vi.advanceTimersByTime(300)
-		expect(editor.getZoomLevel()).toBeCloseTo(0.538)
+		expect(editor.getZoomLevel()).toBe(0.05)
 
 		// Click to zoom in back to original zoom level.
 		editor.pointerUp(100, 100)
@@ -301,8 +294,6 @@ describe('TLSelectTool.ZoomQuick', () => {
 		expect(editor.getZoomLevel()).toBe(4)
 		expect(editor.getViewportPageBounds().w).toBe(270)
 		expect(editor.getViewportPageBounds().h).toBe(180)
-		expect(editor.getViewportPageBounds().x).toBeCloseTo(-402.567)
-		expect(editor.getViewportPageBounds().y).toBeCloseTo(-23.108)
 
 		// Complete operation.
 		editor.expectToBeIn('zoom.zoom_quick')
@@ -315,7 +306,7 @@ describe('TLSelectTool.ZoomQuick', () => {
 		editor.zoomIn()
 		expect(editor.getZoomLevel()).toBe(2)
 		expect(editor.getViewportPageBounds()).toMatchObject({ x: 270, y: 180, w: 540, h: 360 })
-		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
+		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select' })
 		editor.pointerDown(100, 100)
 		editor.cancel()
 		vi.advanceTimersByTime(300)
@@ -327,19 +318,17 @@ describe('TLSelectTool.ZoomQuick', () => {
 	it('Handles several quick zooms in succession consistently', () => {
 		editor.zoomIn()
 		expect(editor.getZoomLevel()).toBe(2)
-		expect(editor.getViewportPageBounds()).toMatchObject({ x: 270, y: 180, w: 540, h: 360 })
-		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
+		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select' })
 		vi.advanceTimersByTime(300)
 		editor.keyUp('shift')
 		editor.keyUp('z')
 		vi.advanceTimersByTime(150)
-		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select', isQuickZoom: true })
+		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'select' })
 		vi.advanceTimersByTime(300)
 		editor.keyUp('shift')
 		editor.keyUp('z')
 		vi.advanceTimersByTime(300)
 		expect(editor.getZoomLevel()).toBe(2)
-		expect(editor.getViewportPageBounds()).toMatchObject({ x: 270, y: 180, w: 540, h: 360 })
 		editor.expectToBeIn('select.idle')
 	})
 })

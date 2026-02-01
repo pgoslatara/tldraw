@@ -5605,7 +5605,6 @@ export class ZoomTool extends StateNode {
     static id: string;
     // (undocumented)
     info: TLPointerEventInfo & {
-        isQuickZoom: boolean;
         onInteractionEnd?: string;
     };
     // (undocumented)
@@ -5614,7 +5613,6 @@ export class ZoomTool extends StateNode {
     static isLockable: boolean;
     // (undocumented)
     onEnter(info: TLPointerEventInfo & {
-        isQuickZoom: boolean;
         onInteractionEnd: string;
     }): void;
     // (undocumented)

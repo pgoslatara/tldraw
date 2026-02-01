@@ -18,9 +18,9 @@ export class ZoomTool extends StateNode {
 	}
 	static override isLockable = false
 
-	info = {} as TLPointerEventInfo & { onInteractionEnd?: string; isQuickZoom: boolean }
+	info = {} as TLPointerEventInfo & { onInteractionEnd?: string }
 
-	override onEnter(info: TLPointerEventInfo & { onInteractionEnd: string; isQuickZoom: boolean }) {
+	override onEnter(info: TLPointerEventInfo & { onInteractionEnd: string }) {
 		this.info = info
 		this.parent.setCurrentToolIdMask(info.onInteractionEnd)
 		this.updateCursor()
@@ -29,7 +29,6 @@ export class ZoomTool extends StateNode {
 	override onExit() {
 		this.parent.setCurrentToolIdMask(undefined)
 		this.editor.updateInstanceState({ zoomBrush: null, cursor: { type: 'default', rotation: 0 } })
-		this.parent.setCurrentToolIdMask(undefined)
 	}
 
 	override onKeyDown() {
@@ -37,10 +36,6 @@ export class ZoomTool extends StateNode {
 	}
 
 	override onKeyUp(info: TLKeyboardEventInfo) {
-		if (this.info.isQuickZoom) {
-			return
-		}
-
 		this.updateCursor()
 
 		if (info.key === 'z') {
@@ -53,16 +48,13 @@ export class ZoomTool extends StateNode {
 	}
 
 	private complete() {
-		// Go back to the previous tool. If we are already in select we want to transition to idle
-		if (this.info.onInteractionEnd && this.info.onInteractionEnd !== 'select') {
-			this.editor.setCurrentTool(this.info.onInteractionEnd, this.info)
-		} else {
-			this.editor.setCurrentTool('select')
-		}
+		// onInteractionEnd is a path like 'select.idle', extract just the tool ID
+		const toolId = this.info.onInteractionEnd?.split('.')[0] ?? 'select'
+		this.editor.setCurrentTool(toolId)
 	}
 
 	private updateCursor() {
-		if (this.editor.inputs.getAltKey() && !this.info.isQuickZoom) {
+		if (this.editor.inputs.getAltKey()) {
 			this.editor.setCursor({ type: 'zoom-out', rotation: 0 })
 		} else {
 			this.editor.setCursor({ type: 'zoom-in', rotation: 0 })

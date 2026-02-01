@@ -371,19 +371,17 @@ export function ActionsProvider({ overrides, children }: ActionsProviderProps) {
 				id: 'select-zoom-tool',
 				label: 'action.select-zoom-tool',
 				readonlyOk: true,
-				kbd: 'z,!z',
+				kbd: 'z, !z',
 				onSelect(source) {
 					if (editor.root.getCurrent()?.id === 'zoom') return
 
 					trackEvent('zoom-tool', { source })
-					const isShiftKey = editor.inputs.getShiftKey()
-					if (!(isShiftKey || editor.inputs.getCtrlKey())) {
-						const currentTool = editor.root.getCurrent()
-						if (currentTool && currentTool.getCurrent()?.id === 'idle') {
-							editor.setCurrentTool(isShiftKey ? 'zoom.zoom_quick' : 'zoom', {
-								onInteractionEnd: currentTool.id,
+					if (!editor.inputs.getAccelKey()) {
+						const path = editor.getPath()
+						if (path.endsWith('.idle')) {
+							editor.setCurrentTool('zoom', {
+								onInteractionEnd: path,
 								maskAs: 'zoom',
-								isQuickZoom: isShiftKey,
 							})
 						}
 					}
