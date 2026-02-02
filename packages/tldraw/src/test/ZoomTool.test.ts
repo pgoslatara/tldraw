@@ -331,4 +331,81 @@ describe('TLSelectTool.ZoomQuick', () => {
 		expect(editor.getZoomLevel()).toBe(2)
 		editor.expectToBeIn('select.idle')
 	})
+
+	it('Returns to original tool on cancel, not hardcoded select', () => {
+		editor.setCurrentTool('draw')
+		editor.expectToBeIn('draw.idle')
+
+		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'draw.idle' })
+		vi.advanceTimersByTime(300)
+		expect(editor.getZoomLevel()).toBe(0.05)
+
+		editor.cancel()
+		vi.advanceTimersByTime(300)
+		editor.expectToBeIn('draw.idle')
+	})
+
+	it('Enters quick zoom via keyboard flow from zoom.idle', () => {
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select.idle' })
+		editor.expectToBeIn('zoom.idle')
+
+		// Press Shift to enter quick zoom
+		editor.keyDown('Shift')
+		editor.expectToBeIn('zoom.zoom_quick')
+		expect(editor.getZoomLevel()).toBe(0.05)
+
+		// Release Shift to return to zoom.idle
+		editor.keyUp('Shift')
+		vi.advanceTimersByTime(300)
+		editor.expectToBeIn('zoom.idle')
+	})
+})
+
+describe('ZoomTool edge cases', () => {
+	beforeEach(() => {
+		editor = new TestEditor()
+		editor.selectAll().deleteShapes(editor.getSelectedShapeIds())
+	})
+
+	it('Exits zoom tool when releasing Z while holding Shift (uppercase Z)', () => {
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select.idle' })
+		editor.expectToBeIn('zoom.idle')
+
+		// Simulate releasing 'z' key while Shift is held, which produces 'Z'
+		editor.keyUp('Z')
+		editor.expectToBeIn('select.idle')
+	})
+
+	it('Exits zoom tool when releasing lowercase z', () => {
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'select.idle' })
+		editor.expectToBeIn('zoom.idle')
+
+		editor.keyUp('z')
+		editor.expectToBeIn('select.idle')
+	})
+
+	it('Returns to draw tool after zoom operation completes', () => {
+		editor.setCurrentTool('draw')
+		editor.expectToBeIn('draw.idle')
+
+		editor.setCurrentTool('zoom', { onInteractionEnd: 'draw.idle' })
+		editor.expectToBeIn('zoom.idle')
+
+		// Complete the zoom operation by releasing z
+		editor.keyUp('z')
+		editor.expectToBeIn('draw.idle')
+	})
+
+	it('Returns to arrow tool after quick zoom cancel', () => {
+		editor.setCurrentTool('arrow')
+		editor.expectToBeIn('arrow.idle')
+
+		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'arrow.idle' })
+		vi.advanceTimersByTime(300)
+		expect(editor.getZoomLevel()).toBe(0.05)
+
+		editor.cancel()
+		vi.advanceTimersByTime(300)
+		editor.expectToBeIn('arrow.idle')
+	})
 })
