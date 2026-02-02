@@ -21,6 +21,7 @@ import {
 	openWindow,
 	useMaybeEditor,
 } from '@tldraw/editor'
+import console from 'console'
 import * as React from 'react'
 import { createBookmarkFromUrl } from '../../shapes/bookmark/bookmarks'
 import { fitFrameToContent, removeFrame } from '../../utils/frames/frames'
@@ -373,18 +374,21 @@ export function ActionsProvider({ overrides, children }: ActionsProviderProps) {
 				readonlyOk: true,
 				kbd: 'z, !z',
 				onSelect(source) {
+					// Noop if user is actually cmd/ctrl+z'ing
+					if (editor.inputs.getAccelKey()) return
+
+					// Noop unless in the current tool's idle state
+					const path = editor.getPath()
+					if (!path.endsWith('.idle')) return
+
+					// Noop if already in zoom tool
 					if (editor.root.getCurrent()?.id === 'zoom') return
 
 					trackEvent('zoom-tool', { source })
-					if (!editor.inputs.getAccelKey()) {
-						const path = editor.getPath()
-						if (path.endsWith('.idle')) {
-							editor.setCurrentTool('zoom', {
-								onInteractionEnd: path,
-								maskAs: 'zoom',
-							})
-						}
-					}
+					editor.setCurrentTool('zoom', {
+						onInteractionEnd: path,
+						maskAs: 'zoom',
+					})
 				},
 			},
 			{

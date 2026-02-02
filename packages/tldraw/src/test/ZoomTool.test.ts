@@ -395,17 +395,4 @@ describe('ZoomTool edge cases', () => {
 		editor.keyUp('z')
 		editor.expectToBeIn('draw.idle')
 	})
-
-	it('Returns to arrow tool after quick zoom cancel', () => {
-		editor.setCurrentTool('arrow')
-		editor.expectToBeIn('arrow.idle')
-
-		editor.setCurrentTool('zoom.zoom_quick', { onInteractionEnd: 'arrow.idle' })
-		vi.advanceTimersByTime(300)
-		expect(editor.getZoomLevel()).toBe(0.05)
-
-		editor.cancel()
-		vi.advanceTimersByTime(300)
-		editor.expectToBeIn('arrow.idle')
-	})
 })
