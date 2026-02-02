@@ -142,6 +142,7 @@ export class TldrawApp {
 
 	private readonly abortController = new AbortController()
 	readonly disposables: (() => void)[] = [() => this.abortController.abort(), () => this.z.close()]
+	private getToken: () => Promise<string | undefined>
 
 	changes: Map<Atom<any, unknown>, any> = new Map()
 	changesFlushed = null as null | ReturnType<typeof promiseWithResolve>
@@ -193,6 +194,7 @@ export class TldrawApp {
 	) {
 		this.navigate = navigate
 		this.trackEvent = trackEvent
+		this.getToken = getToken
 		const sessionId = uniqueId()
 		if (useProperZero) {
 			const z = new Zero<TlaSchema, TlaMutators, ZeroContext>({
@@ -264,6 +266,14 @@ export class TldrawApp {
 	}
 
 	async preload() {
+		if (useProperZero) {
+			// Ensure user exists in DB before Zero can query
+			const token = await this.getToken()
+			await fetch(`/api/app/${this.userId}/init`, {
+				method: 'POST',
+				headers: { Authorization: `Bearer ${token}` },
+			})
+		}
 		await this.z.preload(this.userQuery()).complete
 		await this.changesFlushed
 		await new Promise((resolve) => {
@@ -271,6 +281,7 @@ export class TldrawApp {
 			unlisten = react('wait for user', () => this.user$.get() && resolve(unlisten()))
 		})
 		await this.z.preload(this.fileStateQuery()).complete
+		await this.z.preload(this.groupMembershipsQuery()).complete
 	}
 
 	messages = defineMessages({

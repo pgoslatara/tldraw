@@ -174,6 +174,10 @@ export class TLUserDurableObject extends DurableObject<Environment> {
 			}
 		})
 		.get(`/app/:userId/connect`, (req) => this.onRequest(req))
+		.post('/app/:userId/init', () => {
+			// User creation happens in the .all() middleware above
+			return Response.json({ ok: true })
+		})
 		.post('/app/:userId/fairy/check-rate-limit', async () => {
 			if (!this.userId) {
 				return Response.json({ error: 'User ID not initialized' }, { status: 400 })

@@ -115,6 +115,12 @@ const router = createRouter<Environment>()
 		const stub = getUserDurableObject(env, auth.userId)
 		return stub.fetch(req)
 	})
+	.post('/app/:userId/init', async (req, env) => {
+		// Ensure user exists in DB before Zero can query
+		const auth = await requireAuth(req, env)
+		const stub = getUserDurableObject(env, auth.userId)
+		return stub.fetch(req)
+	})
 	.post('/app/tldr', createFiles)
 	.get('/app/replicator-status', async (_, env) => {
 		await getReplicator(env).ping()
