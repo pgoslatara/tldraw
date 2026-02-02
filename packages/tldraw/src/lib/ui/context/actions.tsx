@@ -21,7 +21,6 @@ import {
 	openWindow,
 	useMaybeEditor,
 } from '@tldraw/editor'
-import console from 'console'
 import * as React from 'react'
 import { createBookmarkFromUrl } from '../../shapes/bookmark/bookmarks'
 import { fitFrameToContent, removeFrame } from '../../utils/frames/frames'
