@@ -60,6 +60,7 @@
 
 	/* Misc */
 	--tl-zoom: 1;
+	--tl-tab-size: 2;
 
 	/* Cursor SVGs */
 	--tl-cursor-none: none;
@@ -860,6 +861,7 @@ input,
 	word-wrap: break-word;
 	overflow-wrap: break-word;
 	white-space: pre-wrap;
+	tab-size: var(--tl-tab-size, 2);
 
 	/**
 	 * Note: ProseMirror disables this in https://github.com/ProseMirror/prosemirror-view/commit/6b3b2205e2f3029cb8e8e86c55a190a22491df31
