@@ -245,6 +245,7 @@ export class Zero {
 		}
 
 		let interval: ReturnType<typeof setInterval> | null = null
+		let cancelled = false
 		const load = new Promise<void>((resolve) => {
 			interval = setInterval(() => {
 				if (this.store.getFullData()) {
@@ -256,11 +257,12 @@ export class Zero {
 		})
 
 		const timeout = sleep(10_000).then(() => {
-			throw new Error('Timed out waiting for data')
+			if (!cancelled) throw new Error('Timed out waiting for data')
 		})
 
 		return {
 			cleanup: () => {
+				cancelled = true
 				if (interval) clearInterval(interval)
 			},
 			complete: Promise.race([load, timeout]),
