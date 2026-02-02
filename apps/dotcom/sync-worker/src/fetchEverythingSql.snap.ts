@@ -40,7 +40,8 @@ SELECT
   "id"::text as "21",
   "inputMode"::text as "22",
   "locale"::text as "23",
-  "name"::text as "24"
+  "name"::text as "24",
+  null::jsonb as "25"
 FROM public."user"
 WHERE "id" = $1
 UNION ALL
@@ -70,7 +71,8 @@ SELECT
   null::text as "21",
   null::text as "22",
   null::text as "23",
-  null::text as "24"
+  null::text as "24",
+  null::jsonb as "25"
 FROM my_file_states
 UNION ALL
 SELECT
@@ -99,7 +101,8 @@ SELECT
   "publishedSlug"::text as "21",
   "sharedLinkType"::text as "22",
   "thumbnail"::text as "23",
-  null::text as "24"
+  null::text as "24",
+  null::jsonb as "25"
 FROM all_files
 UNION ALL
 SELECT
@@ -128,7 +131,8 @@ SELECT
   null::text as "21",
   null::text as "22",
   null::text as "23",
-  null::text as "24"
+  null::text as "24",
+  null::jsonb as "25"
 FROM group_file_ownership
 UNION ALL
 SELECT
@@ -157,7 +161,8 @@ SELECT
   null::text as "21",
   null::text as "22",
   null::text as "23",
-  null::text as "24"
+  null::text as "24",
+  null::jsonb as "25"
 FROM my_groups
 UNION ALL
 SELECT
@@ -186,7 +191,8 @@ SELECT
   null::text as "21",
   null::text as "22",
   null::text as "23",
-  null::text as "24"
+  null::text as "24",
+  null::jsonb as "25"
 FROM all_group_users
 UNION ALL
 SELECT
@@ -207,7 +213,7 @@ SELECT
   null::bigint as "13",
   "fairies"::text as "14",
   "userId"::text as "15",
-  "weeklyUsage"::text as "16",
+  null::text as "16",
   null::text as "17",
   null::text as "18",
   null::text as "19",
@@ -215,7 +221,8 @@ SELECT
   null::text as "21",
   null::text as "22",
   null::text as "23",
-  null::text as "24"
+  null::text as "24",
+  "weeklyUsage"::jsonb as "25"
 FROM my_fairies
 UNION ALL
 SELECT
@@ -244,7 +251,8 @@ SELECT
   null::text as "21",
   null::text as "22",
   null::text as "23",
-  null::text as "24"
+  null::text as "24",
+  null::jsonb as "25"
 FROM file_fairies
 UNION ALL
 SELECT
@@ -273,7 +281,8 @@ SELECT
   null::text as "21",
   null::text as "22",
   null::text as "23",
-  null::text as "24"
+  null::text as "24",
+  null::jsonb as "25"
 FROM public."user_mutation_number"
 WHERE "userId" = $1
 UNION ALL
@@ -303,7 +312,8 @@ SELECT
   null::text as "21",
   null::text as "22",
   null::text as "23",
-  null::text as "24"
+  null::text as "24",
+  null::jsonb as "25"
 `
 
 export const columnNamesByAlias = {
@@ -394,7 +404,7 @@ export const columnNamesByAlias = {
 		'12': 'weeklyLimit',
 		'14': 'fairies',
 		'15': 'userId',
-		'16': 'weeklyUsage',
+		'25': 'weeklyUsage',
 	},
 	file_fairies: {
 		'14': 'fairyState',
