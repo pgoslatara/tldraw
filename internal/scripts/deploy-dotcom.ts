@@ -43,10 +43,9 @@ const zeroCacheFolder = path.relative(
 )
 
 const zeroCachePackageJsonPath = path.join(zeroCacheFolder, 'package.json')
-const zeroVersionRaw = JSON.parse(fs.readFileSync(zeroCachePackageJsonPath).toString())
-	.dependencies['@rocicorp/zero'] as string
-// Strip semver range prefix (^, ~) for Docker image tag
-const zeroVersion = zeroVersionRaw.replace(/^[\^~]/, '')
+const zeroVersion = JSON.parse(fs.readFileSync(zeroCachePackageJsonPath).toString()).dependencies[
+	'@rocicorp/zero'
+] as string
 
 const { previewId, sha } = getDeployInfo()
 
