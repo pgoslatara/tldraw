@@ -345,15 +345,24 @@ export interface DB {
 	paddle_transactions: TlaPaddleTransaction
 }
 
+const baseTables = [user, file, file_state, group, group_user, group_file] as const
+const baseRelationships = [
+	fileRelationships,
+	fileStateRelationships,
+	groupRelationships,
+	groupUserRelationships,
+	groupFileRelationships,
+] as const
+
 export const schema = createSchema({
-	tables: [user, file, file_state, group, group_user, group_file, user_fairies, file_fairies],
-	relationships: [
-		fileRelationships,
-		fileStateRelationships,
-		groupRelationships,
-		groupUserRelationships,
-		groupFileRelationships,
-	],
+	tables: [...baseTables, user_fairies, file_fairies],
+	relationships: [...baseRelationships],
+})
+
+// Schema without fairy tables - ONLY for proper Zero client (fairies not in zero_data publication)
+export const schemaWithoutFairies = createSchema({
+	tables: [...baseTables],
+	relationships: [...baseRelationships],
 })
 
 export type TlaSchema = typeof schema

@@ -27,6 +27,7 @@ import {
 	createMutators,
 	parseFlags,
 	queries,
+	schemaWithoutFairies,
 	schema as zeroSchema,
 } from '@tldraw/dotcom-shared'
 import {
@@ -197,7 +198,7 @@ export class TldrawApp {
 			const z = new Zero<TlaSchema, TlaMutators, ZeroContext>({
 				auth: initialToken,
 				userID: userId,
-				schema: zeroSchema,
+				schema: schemaWithoutFairies as typeof zeroSchema,
 				cacheURL: ZERO_SERVER,
 				mutators: createMutators(userId),
 				context: { userId } satisfies ZeroContext,
