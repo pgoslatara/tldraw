@@ -274,6 +274,16 @@ export class Zero {
 	 * Handles table queries with where clauses and relations.
 	 */
 	private executeAST(ast: AST, tolerateUnsetData = true): unknown {
+		// Validate unsupported AST features early
+		if (ast.orderBy?.length) {
+			throw new Error(`Unsupported AST feature: orderBy is not implemented in polyfill`)
+		}
+		if (ast.start) {
+			throw new Error(
+				`Unsupported AST feature: start (pagination bounds) is not implemented in polyfill`
+			)
+		}
+
 		const data = this.store.getFullData()
 		if (!data) {
 			assert(tolerateUnsetData, 'Data is not set yet')
@@ -355,31 +365,47 @@ export class Zero {
 
 	/**
 	 * Evaluate a where condition against a row.
+	 * Supported: and, or, simple conditions with =, !=, >, <, >=, <= operators
+	 * NOT supported: correlatedSubquery (EXISTS), LIKE, IN, IS operators
 	 */
 	private evaluateCondition(
 		condition: NonNullable<AST['where']>,
 		row: Record<string, unknown>
 	): boolean {
 		if ('type' in condition) {
-			if (condition.type === 'and') {
-				return condition.conditions.every((c) => this.evaluateCondition(c, row))
-			}
-			if (condition.type === 'or') {
-				return condition.conditions.some((c) => this.evaluateCondition(c, row))
-			}
-			if (condition.type === 'simple') {
-				// Fall through to simple condition handling below
-			} else {
-				throw new Error(`Unknown condition type: ${condition.type}`)
+			switch (condition.type) {
+				case 'and':
+					return (
+						condition as { conditions: readonly NonNullable<AST['where']>[] }
+					).conditions.every((c) => this.evaluateCondition(c, row))
+				case 'or':
+					return (
+						condition as { conditions: readonly NonNullable<AST['where']>[] }
+					).conditions.some((c) => this.evaluateCondition(c, row))
+				case 'simple':
+					// Fall through to simple condition handling below
+					break
+				case 'correlatedSubquery':
+					throw new Error(
+						`Unsupported condition type: correlatedSubquery (EXISTS/NOT EXISTS) is not implemented in polyfill`
+					)
+				default:
+					throw new Error(`Unknown condition type: ${(condition as { type: string }).type}`)
 			}
 		}
 
 		// Simple condition: { left, op, right } or { type: 'simple', left, op, right }
 		const simpleCondition = condition as {
-			left: { name: string }
+			left: { type?: string; name: string }
 			op: string
-			right: { value: unknown }
+			right: { type?: string; value: unknown }
 		}
+
+		// Validate left side is a column reference
+		if (simpleCondition.left?.type === 'static') {
+			throw new Error(`Unsupported: static parameter references are not implemented in polyfill`)
+		}
+
 		const fieldName = simpleCondition.left?.name
 		const op = simpleCondition.op
 		const value = simpleCondition.right?.value
@@ -403,8 +429,19 @@ export class Zero {
 				return (rowValue as number) >= (value as number)
 			case '<=':
 				return (rowValue as number) <= (value as number)
+			case 'IS':
+			case 'IS NOT':
+				throw new Error(`Unsupported operator: ${op} is not implemented in polyfill`)
+			case 'LIKE':
+			case 'NOT LIKE':
+			case 'ILIKE':
+			case 'NOT ILIKE':
+				throw new Error(`Unsupported operator: ${op} is not implemented in polyfill`)
+			case 'IN':
+			case 'NOT IN':
+				throw new Error(`Unsupported operator: ${op} is not implemented in polyfill`)
 			default:
-				throw new Error(`Unknown operator: ${op}`)
+				throw new Error(`Unknown operator: ${op}. Supported: =, !=, >, <, >=, <=`)
 		}
 	}
 
