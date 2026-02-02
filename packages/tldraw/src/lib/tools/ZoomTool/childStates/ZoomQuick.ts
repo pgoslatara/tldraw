@@ -49,9 +49,9 @@ export class ZoomQuick extends StateNode {
 	override onCancel() {
 		// Clear brush so onExit zooms back to initial viewport
 		this.zoomBrush = null
-		this.editor.updateInstanceState({ zoomBrush: null })
-		// Exit the zoom tool entirely
-		this.editor.setCurrentTool('select')
+		// Exit the zoom tool entirely, returning to the original tool
+		const toolId = this.info.onInteractionEnd?.split('.')[0] ?? 'select'
+		this.editor.setCurrentTool(toolId)
 	}
 
 	override onKeyUp(info: TLKeyboardEventInfo) {

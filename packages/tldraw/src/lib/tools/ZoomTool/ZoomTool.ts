@@ -22,7 +22,9 @@ export class ZoomTool extends StateNode {
 
 	override onEnter(info: TLPointerEventInfo & { onInteractionEnd: string }) {
 		this.info = info
-		this.parent.setCurrentToolIdMask(info.onInteractionEnd)
+		// onInteractionEnd is a path like 'select.idle', extract just the tool ID for the mask
+		const toolId = info.onInteractionEnd?.split('.')[0]
+		this.parent.setCurrentToolIdMask(toolId)
 		this.updateCursor()
 	}
 
@@ -38,7 +40,8 @@ export class ZoomTool extends StateNode {
 	override onKeyUp(info: TLKeyboardEventInfo) {
 		this.updateCursor()
 
-		if (info.key === 'z') {
+		// Use toLowerCase to handle case when Shift is held (produces 'Z')
+		if (info.key.toLowerCase() === 'z') {
 			this.complete()
 		}
 	}
