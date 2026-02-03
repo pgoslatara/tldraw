@@ -19,15 +19,33 @@ export function getClerkClient(env: Environment) {
 	})
 }
 
+function getAuthorizedParties(env: Environment): string[] {
+	const parties = [
+		'http://localhost:5420',
+		'https://tldraw.com',
+		'https://www.tldraw.com',
+		'https://staging.tldraw.com',
+	]
+	// For preview envs, add the preview domain
+	// WORKER_NAME is like "pr-7731-tldraw-multiplayer"
+	if (env.TLDRAW_ENV === 'preview' && env.WORKER_NAME) {
+		const previewId = env.WORKER_NAME.replace(/-tldraw-multiplayer$/, '')
+		parties.push(`https://${previewId}-preview-deploy.tldraw.com`)
+	}
+	return parties
+}
+
 export async function getAuth(request: IRequest, env: Environment): Promise<SignedInAuth | null> {
 	const clerk = getClerkClient(env)
+	const authorizedParties = getAuthorizedParties(env)
 
 	// Debug: log what headers we receive
 	const authHeader = request.headers.get('Authorization')
 	console.log('[getAuth] Authorization header present:', !!authHeader)
 	console.log('[getAuth] Authorization header value:', authHeader?.substring(0, 50) + '...')
+	console.log('[getAuth] Authorized parties:', authorizedParties)
 
-	const state = await clerk.authenticateRequest(request)
+	const state = await clerk.authenticateRequest(request, { authorizedParties })
 	console.log('[getAuth] First authenticateRequest result:', state.isSignedIn)
 	if (state.isSignedIn) return state.toAuth() as SignedInAuth
 
@@ -44,7 +62,7 @@ export async function getAuth(request: IRequest, env: Environment): Promise<Sign
 		}
 	}
 
-	const res = await clerk.authenticateRequest(cloned)
+	const res = await clerk.authenticateRequest(cloned, { authorizedParties })
 	if (!res.isSignedIn) {
 		return null
 	}
