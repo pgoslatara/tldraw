@@ -2392,6 +2392,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@emoji-mart/data@npm:^1.1.2":
+  version: 1.2.1
+  resolution: "@emoji-mart/data@npm:1.2.1"
+  checksum: 10/a9f50edaf354aadfede604fb26d80055a085e9160db2c924fd5e6afc27033cd5beb0006a9ee48240ce9c543e58e1bf1cf9ed83baba5db83a395154984b30bd91
+  languageName: node
+  linkType: hard
+
 "@esbuild/aix-ppc64@npm:0.25.4":
   version: 0.25.4
   resolution: "@esbuild/aix-ppc64@npm:0.25.4"
@@ -9413,6 +9420,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@tiptap/suggestion@npm:^3.12.1":
+  version: 3.18.0
+  resolution: "@tiptap/suggestion@npm:3.18.0"
+  peerDependencies:
+    "@tiptap/core": ^3.18.0
+    "@tiptap/pm": ^3.18.0
+  checksum: 10/cb6a2c664f2543f929a13a72cdd1cd010412a85c375aa17267094e48b1eb34a74bc7ddb4a8d8d50cf6eeccfd503f0e61eff287027f085f970e119f6f5de498dd
+  languageName: node
+  linkType: hard
+
 "@tldraw/analytics-worker@workspace:apps/analytics-worker":
   version: 0.0.0-use.local
   resolution: "@tldraw/analytics-worker@workspace:apps/analytics-worker"
@@ -15043,6 +15060,7 @@ __metadata:
     "@clerk/clerk-react": "npm:^5.53.3"
     "@clerk/elements": "npm:^0.23.74"
     "@clerk/testing": "npm:^1.4.15"
+    "@emoji-mart/data": "npm:^1.1.2"
     "@formatjs/cli": "npm:^6.5.1"
     "@playwright/test": "npm:^1.50.0"
     "@rocicorp/zero": "npm:0.19.2025050203"
@@ -15050,6 +15068,10 @@ __metadata:
     "@sentry/integrations": "npm:^7.120.3"
     "@sentry/react": "npm:^7.120.3"
     "@swc/plugin-formatjs": "npm:^5.1.1"
+    "@tiptap/core": "npm:^3.12.1"
+    "@tiptap/pm": "npm:^3.12.1"
+    "@tiptap/react": "npm:^3.12.1"
+    "@tiptap/suggestion": "npm:^3.12.1"
     "@tldraw/assets": "workspace:*"
     "@tldraw/dotcom-shared": "workspace:*"
     "@tldraw/fairy-shared": "workspace:*"
@@ -15069,6 +15091,7 @@ __metadata:
     browser-fs-access: "npm:^0.35.0"
     classnames: "npm:^2.5.1"
     dotenv: "npm:^16.4.7"
+    emoji-mart: "patch:emoji-mart@npm%3A5.5.2#~/.yarn/patches/emoji-mart-npm-5.5.2-10ed58131e.patch"
     fast-glob: "npm:^3.3.3"
     idb: "npm:^7.1.1"
     identity-obj-proxy: "npm:^3.0.0"
@@ -15219,6 +15242,20 @@ __metadata:
   version: 1.5.88
   resolution: "electron-to-chromium@npm:1.5.88"
   checksum: 10/cb52f817ad7b918580c2d70f3e7c21bea7e6f260d3b3a221265fce03cd6b653af91464bfebee8a55f0f6bcbc11b34853e7555bafb3ecf65ff035d65e63e6c745
+  languageName: node
+  linkType: hard
+
+"emoji-mart@npm:5.5.2":
+  version: 5.5.2
+  resolution: "emoji-mart@npm:5.5.2"
+  checksum: 10/3b891f7940b25fbe83eb784b655bca9fa1b552ddf1c76bf631d51c4b2adef7072834f58b08ed63dc3fccd635d63de7a38f40cd0320fa7c24d97b9ced60dec957
+  languageName: node
+  linkType: hard
+
+"emoji-mart@patch:emoji-mart@npm%3A5.5.2#~/.yarn/patches/emoji-mart-npm-5.5.2-10ed58131e.patch":
+  version: 5.5.2
+  resolution: "emoji-mart@patch:emoji-mart@npm%3A5.5.2#~/.yarn/patches/emoji-mart-npm-5.5.2-10ed58131e.patch::version=5.5.2&hash=1fc67b"
+  checksum: 10/dac96d98c602986447e3af7bdae67ab6f8d5ca11d18bc660f867d2a09307816e4d38dddec3174d06469d7e906f60a6af8c8e97a2d1f6dfbeb3cec4c388bc9c10
   languageName: node
   linkType: hard
 

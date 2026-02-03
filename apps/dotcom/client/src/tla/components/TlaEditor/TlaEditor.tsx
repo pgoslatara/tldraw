@@ -17,6 +17,7 @@ import {
 	parseDeepLinkString,
 	react,
 	throttle,
+	tipTapDefaultExtensions,
 	tltime,
 	useAtom,
 	useDialogs,
@@ -26,6 +27,7 @@ import {
 	type TLPresenceUserInfo,
 	type TLStore,
 } from 'tldraw'
+import EmojiExtension from '../../../components/Emojis/EmojiExtension'
 import { ThemeUpdater } from '../../../components/ThemeUpdater/ThemeUpdater'
 
 import { useOpenUrlAndTrack } from '../../../hooks/useOpenUrlAndTrack'
@@ -91,6 +93,12 @@ export const components: TLComponents = {
 	SharePanel: TlaEditorSharePanel,
 	Dialogs: null,
 	Toasts: null,
+}
+
+const textOptions = {
+	tipTapConfig: {
+		extensions: [...tipTapDefaultExtensions, EmojiExtension],
+	},
 }
 
 interface TlaEditorProps {
@@ -368,6 +376,7 @@ function TlaEditorInner({ fileSlug, deepLinks }: TlaEditorProps) {
 				deepLinks={deepLinks || undefined}
 				overrides={[overrides, extraDragIconOverrides]}
 				getShapeVisibility={getShapeVisibility}
+				textOptions={textOptions}
 			>
 				<ThemeUpdater />
 				<SneakyDarkModeSync />

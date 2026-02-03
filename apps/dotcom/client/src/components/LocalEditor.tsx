@@ -1,6 +1,13 @@
 import { getLicenseKey } from '@tldraw/dotcom-shared'
 import { ReactNode } from 'react'
-import { Editor, TLComponents, Tldraw, TldrawOptions, useEvent } from 'tldraw'
+import {
+	Editor,
+	tipTapDefaultExtensions,
+	TLComponents,
+	Tldraw,
+	TldrawOptions,
+	useEvent,
+} from 'tldraw'
 import { SneakyToolSwitcher } from '../tla/components/TlaEditor/sneaky/SneakyToolSwitcher'
 import { useExtraDragIconOverrides } from '../tla/components/TlaEditor/useExtraToolDragIcons'
 import { useFileEditorOverrides } from '../tla/components/TlaEditor/useFileEditorOverrides'
@@ -8,8 +15,15 @@ import { useHandleUiEvents } from '../utils/analytics'
 import { assetUrls } from '../utils/assetUrls'
 import { createAssetFromUrl } from '../utils/createAssetFromUrl'
 import { getScratchPersistenceKey } from '../utils/scratch-persistence-key'
+import EmojiExtension from './Emojis/EmojiExtension'
 import { SneakyOnDropOverride } from './SneakyOnDropOverride'
 import { ThemeUpdater } from './ThemeUpdater/ThemeUpdater'
+
+const textOptions = {
+	tipTapConfig: {
+		extensions: [...tipTapDefaultExtensions, EmojiExtension],
+	},
+}
 
 export function LocalEditor({
 	components,
@@ -47,6 +61,7 @@ export function LocalEditor({
 				overrides={[fileSystemUiOverrides, extraDragIconOverrides]}
 				onUiEvent={handleUiEvent}
 				components={components}
+				textOptions={textOptions}
 				options={options}
 			>
 				<SneakyOnDropOverride isMultiplayer={false} />
