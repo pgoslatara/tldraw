@@ -37,13 +37,15 @@
 	z-index: 0;
 }
 
-.tlui-button:disabled {
+.tlui-button:disabled,
+.tlui-button[data-disabled] {
 	color: var(--tl-color-text-3);
 	text-shadow: none;
 	cursor: default;
 }
 
-.tlui-button:disabled .tlui-kbd {
+.tlui-button:disabled .tlui-kbd,
+.tlui-button[data-disabled] .tlui-kbd {
 	color: var(--tl-color-text-3);
 }
 
@@ -92,7 +94,7 @@
 }
 
 .tlui-button[data-isactive='true']::after,
-.tlui-button[data-isactive='true']:not(:disabled, :focus-visible):active:after {
+.tlui-button[data-isactive='true']:not(:disabled, [data-disabled], :focus-visible):active:after {
 	background: var(--tl-color-hint);
 	opacity: 1;
 }
@@ -108,11 +110,11 @@
 		opacity: 1;
 	}
 
-	.tlui-button:not(:disabled):hover {
+	.tlui-button:not(:disabled, [data-disabled]):hover {
 		z-index: 1;
 	}
 
-	.tlui-button:not(:disabled):hover::after {
+	.tlui-button:not(:disabled, [data-disabled]):hover::after {
 		opacity: 1;
 	}
 }
@@ -151,11 +153,11 @@
 }
 
 @media (hover: hover) {
-	.tlui-button__primary:not(:disabled, :focus-visible):hover {
+	.tlui-button__primary:not(:disabled, [data-disabled], :focus-visible):hover {
 		color: var(--tl-color-primary);
 	}
 
-	.tlui-button__danger:not(:disabled, :focus-visible):hover {
+	.tlui-button__danger:not(:disabled, [data-disabled], :focus-visible):hover {
 		color: var(--tl-color-danger);
 		text-shadow: none;
 	}
@@ -168,7 +170,7 @@
 	min-height: 40px;
 	width: 100%;
 	gap: 8px;
-	margin: -4px 0px;
+	margin-top: -4px;
 }
 
 .tlui-button__menu::after {
@@ -243,11 +245,11 @@
 	color: var(--tl-color-selected-contrast);
 }
 
-.tlui-button__tool[aria-pressed='true']:not(:disabled, :focus-visible):active {
+.tlui-button__tool[aria-pressed='true']:not(:disabled, [data-disabled], :focus-visible):active {
 	color: var(--tl-color-selected-contrast);
 }
 
-.tlui-button__tool[aria-pressed='true']:not(:disabled)::after {
+.tlui-button__tool[aria-pressed='true']:not(:disabled, [data-disabled])::after {
 	background: var(--tl-color-selected);
 	opacity: 1;
 }
@@ -494,6 +496,10 @@
 	-webkit-user-select: auto !important;
 }
 
+.tlui-input::placeholder {
+	color: var(--tl-color-text-3);
+}
+
 .tlui-input__wrapper {
 	width: 100%;
 	height: 44px;
@@ -510,12 +516,10 @@
 /* If mobile use 16px as font size */
 /* On iOS, font size under 16px in an input will make the page zoom into the input 🤦‍♂️ */
 /* https://css-tricks.com/16px-or-larger-text-prevents-ios-form-zoom/ */
-@media (max-width: 600px) {
-	@supports (-webkit-touch-callout: none) {
-		/* CSS specific to iOS devices */
-		.tlui-input {
-			font-size: 16px;
-		}
+@supports (-webkit-touch-callout: none) {
+	/* CSS specific to iOS devices */
+	.tlui-input {
+		font-size: 16px;
 	}
 }
 
@@ -578,6 +582,12 @@
 	box-shadow: var(--tl-shadow-3);
 }
 
+@media (max-height: 600px) {
+	.tlui-menu {
+		max-height: 70vh;
+	}
+}
+
 .tlui-menu::-webkit-scrollbar {
 	display: none;
 }
@@ -601,25 +611,31 @@
 
 /* Submenu triggers */
 
-.tlui-menu__submenu__trigger[data-state='open']::after {
-	opacity: 1;
-	background: linear-gradient(90deg, rgba(144, 144, 144, 0) 0%, var(--tl-color-muted-2) 100%);
+.tlui-menu__submenu__trigger {
+	--gradient-angle: 90deg;
 }
 
-.tlui-menu__submenu__trigger[data-direction='left'][data-state='open']::after {
+.tlui-menu__submenu__trigger[data-direction='left'] {
+	--gradient-angle: 270deg;
+}
+
+.tlui-menu__submenu__trigger[data-state='open']::after {
 	opacity: 1;
-	background: linear-gradient(270deg, rgba(144, 144, 144, 0) 0%, var(--tl-color-muted-2) 100%);
+	background: linear-gradient(
+		var(--gradient-angle),
+		rgba(144, 144, 144, 0) 0%,
+		var(--tl-color-muted-2) 100%
+	);
 }
 
 @media (hover: hover) {
-	.tlui-menu__submenu__trigger[data-state='open']:not(:hover)::after {
+	.tlui-menu__submenu__trigger:is(:hover, [data-state='open'])::after {
 		opacity: 1;
-		background: linear-gradient(90deg, rgba(144, 144, 144, 0) 0%, var(--tl-color-muted-2) 100%);
-	}
-
-	.tlui-menu__submenu__trigger[data-direction='left'][data-state='open']:not(:hover)::after {
-		opacity: 1;
-		background: linear-gradient(270deg, rgba(144, 144, 144, 0) 0%, var(--tl-color-muted-2) 100%);
+		background: linear-gradient(
+			var(--gradient-angle),
+			rgba(144, 144, 144, 0) 0%,
+			var(--tl-color-muted-2) 100%
+		);
 	}
 }
 
@@ -898,10 +914,8 @@
 	}
 }
 
-@media (any-pointer: coarse) {
-	.tlui-page_menu__item__submenu > .tlui-button {
-		opacity: 1;
-	}
+.tl-container[data-coarse='true'] .tlui-page_menu__item__submenu > .tlui-button {
+	opacity: 1;
 }
 
 .tlui-button__icon {
@@ -940,16 +954,15 @@
 
 .tlui-offline-indicator {
 	display: flex;
-	flex-direction: row;
-	gap: var(--tl-space-3);
-	color: var(--tl-color-text);
-	background-color: var(--tl-color-low);
-	border: 3px solid var(--tl-color-background);
-	padding: 0px var(--tl-space-5);
-	height: 42px;
+	color: var(--tl-color-background);
+	background-color: var(--tl-color-text);
+	border: none;
+	width: 32px;
+	height: 32px;
 	align-items: center;
 	justify-content: center;
 	border-radius: 99px;
+	cursor: default;
 	opacity: 0;
 	animation: tl-fade-in;
 	animation-duration: 0.12s;
@@ -987,7 +1000,7 @@
 	max-width: 148px;
 }
 
-.tlui-style-panel[data-show-ui-labels='true'] .tlui-button[data-isactive='true'] {
+.tlui-style-panel[data-enhanced-a11y-mode='true'] .tlui-button[data-isactive='true'] {
 	border-radius: 10px;
 	outline: 2px solid var(--tl-color-text);
 	outline-offset: -5px;
@@ -1027,6 +1040,19 @@ tldraw? probably.
 
 .tlui-style-panel__section:empty {
 	display: none;
+}
+
+/*
+ * This is used in a couple places, like Align and Vertical Align.
+ * It's because we have a toolbar with a Toggle Group but then an adjacent button
+ * next to it that opens a popup.
+ */
+.tlui-style-panel__section .tlui-toolbar:has(.tlui-toolbar) {
+	flex-wrap: wrap;
+}
+
+.tlui-style-panel__section .tlui-toolbar:has(.tlui-toolbar) .tlui-style-panel__subheading {
+	margin-left: -2px;
 }
 
 .tlui-style-panel__section__common:not(:only-child) {
@@ -1254,6 +1280,7 @@ tldraw? probably.
 	position: relative;
 	background: var(--tl-color-panel);
 	box-shadow: var(--tl-shadow-2);
+	contain: layout style paint;
 }
 
 .tlui-main-toolbar--horizontal .tlui-main-toolbar__mobile-style-panel {
@@ -1701,6 +1728,12 @@ tldraw? probably.
 
 	/* Terrible fix to allow firefox users to scroll the dialog */
 	overflow-x: auto;
+
+	scrollbar-width: none;
+}
+
+.tlui-shortcuts-dialog__body::-webkit-scrollbar {
+	display: none;
 }
 
 .tlui-shortcuts-dialog__body__tablet {

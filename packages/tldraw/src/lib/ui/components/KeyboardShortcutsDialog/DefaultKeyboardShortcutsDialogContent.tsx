@@ -49,6 +49,7 @@ export function DefaultKeyboardShortcutsDialogContent() {
 				<TldrawUiMenuActionItem actionId="duplicate" />
 			</TldrawUiMenuGroup>
 			<TldrawUiMenuGroup label="shortcuts-dialog.view" id="view">
+				<TldrawUiMenuActionItem actionId="select-zoom-tool" />
 				<TldrawUiMenuActionItem actionId="zoom-in" />
 				<TldrawUiMenuActionItem actionId="zoom-out" />
 				<TldrawUiMenuActionItem actionId="zoom-to-100" />
@@ -165,7 +166,7 @@ export function DefaultKeyboardShortcutsDialogContent() {
 				<TldrawUiMenuItem
 					id="a11y-select-next-shape-container"
 					label="a11y.enter-leave-container"
-					kbd="cmd+shift+[[↑→]]"
+					kbd="cmd+shift+[[↑↓]]"
 					onSelect={() => {
 						/* do nothing */
 					}}

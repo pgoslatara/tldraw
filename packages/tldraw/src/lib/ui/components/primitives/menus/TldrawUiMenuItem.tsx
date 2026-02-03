@@ -24,7 +24,7 @@ import { TldrawUiDropdownMenuItem } from '../TldrawUiDropdownMenu'
 import { TLUiIconJsx } from '../TldrawUiIcon'
 import { TldrawUiKbd } from '../TldrawUiKbd'
 import { TldrawUiToolbarButton } from '../TldrawUiToolbar'
-import { tooltipManager } from '../TldrawUiTooltip'
+import { hideAllTooltips } from '../TldrawUiTooltip'
 import { useTldrawUiMenuContext } from './TldrawUiMenuContext'
 
 /** @public */
@@ -199,7 +199,11 @@ export function TldrawUiMenuItem<
 		}
 		case 'helper-buttons': {
 			return (
-				<TldrawUiButton type="low" onClick={() => onSelect(sourceId)}>
+				<TldrawUiButton
+					type="low"
+					data-testid={`${sourceId}.${id}`}
+					onClick={() => onSelect(sourceId)}
+				>
 					<TldrawUiButtonIcon icon={icon!} />
 					<TldrawUiButtonLabel>{labelStr}</TldrawUiButtonLabel>
 				</TldrawUiButton>
@@ -213,7 +217,7 @@ export function TldrawUiMenuItem<
 						icon={icon}
 						onSelect={onSelect}
 						onDragStart={onDragStart}
-						labelToUse={labelToUse}
+						labelStr={labelStr}
 						titleStr={titleStr}
 						disabled={disabled}
 						isSelected={isSelected}
@@ -247,7 +251,7 @@ export function TldrawUiMenuItem<
 						icon={icon}
 						onSelect={onSelect}
 						onDragStart={onDragStart}
-						labelToUse={labelToUse}
+						labelStr={labelStr}
 						titleStr={titleStr}
 						disabled={disabled}
 						isSelected={isSelected}
@@ -333,7 +337,7 @@ function useDraggableEvents(
 							type: 'pointer',
 							target: 'canvas',
 							name: 'pointer_down',
-							...getPointerInfo(e),
+							...getPointerInfo(editor, e),
 							point: screenSpaceStart,
 						})
 
@@ -345,11 +349,11 @@ function useDraggableEvents(
 							type: 'pointer',
 							target: 'canvas',
 							name: 'pointer_move',
-							...getPointerInfo(e),
+							...getPointerInfo(editor, e),
 							point: screenSpaceStart,
 						})
 
-						tooltipManager.hideAllTooltips()
+						hideAllTooltips()
 						editor.getContainer().focus()
 					})
 				}
@@ -365,7 +369,7 @@ function useDraggableEvents(
 				type: 'pointer',
 				target: 'canvas',
 				name: 'pointer_up',
-				...getPointerInfo(e),
+				...getPointerInfo(editor, e),
 			})
 		}
 
@@ -392,7 +396,7 @@ function useDraggableEvents(
 
 function DraggableToolbarButton({
 	id,
-	labelToUse,
+	labelStr,
 	titleStr,
 	disabled,
 	isSelected,
@@ -403,7 +407,7 @@ function DraggableToolbarButton({
 }: {
 	id: string
 	disabled: boolean
-	labelToUse?: string
+	labelStr?: string
 	titleStr?: string
 	isSelected?: boolean
 	icon: TLUiMenuItemProps['icon']
@@ -416,7 +420,7 @@ function DraggableToolbarButton({
 	if (overflow) {
 		return (
 			<TldrawUiToolbarButton
-				aria-label={labelToUse}
+				aria-label={labelStr}
 				aria-pressed={isSelected ? 'true' : 'false'}
 				isActive={isSelected}
 				className="tlui-button-grid__button"
@@ -434,7 +438,7 @@ function DraggableToolbarButton({
 
 	return (
 		<TldrawUiToolbarButton
-			aria-label={labelToUse}
+			aria-label={labelStr}
 			aria-pressed={isSelected ? 'true' : 'false'}
 			data-testid={`tools.${id}`}
 			data-value={id}

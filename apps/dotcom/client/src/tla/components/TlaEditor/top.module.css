@@ -21,7 +21,6 @@
 	background-color: var(--tl-color-background);
 	border-bottom-right-radius: 11px;
 	padding-left: 2px;
-	width: 100%;
 	max-width: 100%;
 	min-width: 0px;
 	overflow: hidden;
@@ -32,20 +31,9 @@
 	position: relative;
 	z-index: 1;
 	display: flex;
-	width: 100%;
 	overflow: hidden;
 	align-items: center;
 	justify-content: flex-start;
-}
-
-@media (min-width: 768px) {
-	.topLeftPanel {
-		max-width: 100%;
-		width: auto;
-	}
-	.topLeftPanelButtons {
-		width: auto;
-	}
 }
 
 .topLeftPanel > button:nth-last-of-type(1) {
@@ -77,6 +65,16 @@
 	flex-shrink: 2;
 }
 
+@media (max-width: 550px) {
+	.topLeftPanelButtons:has(.topLeftOfflineLogo) .topLeftInputWrapper {
+		display: none;
+	}
+
+	.topLeftPanelButtons:has(.topLeftOfflineLogo) .topLeftPanelSeparator:has(+ .topLeftInputWrapper) {
+		display: none;
+	}
+}
+
 .topLeftInputWrapper > * {
 	width: 100%;
 	overflow: hidden;
@@ -88,7 +86,7 @@
 	width: fit-content;
 	max-width: 320px;
 	width: 100%;
-	white-space: no-wrap;
+	white-space: nowrap;
 	text-overflow: ellipsis;
 	overflow: hidden;
 	opacity: 0;
@@ -206,25 +204,6 @@ button.topLeftInputNameWidthSetter {
 	background: linear-gradient(180deg, rgba(144, 144, 144, 0) 0%, var(--tl-color-muted-2) 100%);
 }
 
-.offlineIndicatorWrapper {
-	position: absolute;
-	top: 0px;
-	left: 0px;
-	width: 100%;
-	padding-top: 3px;
-	height: fit-content;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	pointer-events: none;
-}
-
-@media (max-width: 1080px) {
-	.offlineIndicatorWrapper {
-		padding-top: 44px;
-	}
-}
-
 /* ------------------- Top right ------------------ */
 
 .topRightPanel {
@@ -295,5 +274,11 @@ button.topLeftInputNameWidthSetter {
 @media (hover: hover) {
 	.topRightAnonShareButton:hover::after {
 		visibility: visible;
+	}
+}
+
+@media (max-width: 550px) {
+	.topRightAnonShareButton {
+		display: none;
 	}
 }

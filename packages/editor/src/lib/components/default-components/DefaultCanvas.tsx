@@ -26,6 +26,7 @@ import { GeometryDebuggingView } from '../GeometryDebuggingView'
 import { LiveCollaborators } from '../LiveCollaborators'
 import { MenuClickCapture } from '../MenuClickCapture'
 import { Shape } from '../Shape'
+import { CanvasShapeIndicators } from './CanvasShapeIndicators'
 
 /** @public */
 export interface TLCanvasComponentProps {
@@ -86,6 +87,7 @@ export function DefaultCanvas({ className }: TLCanvasComponentProps) {
 			const transform = `scale(${toDomPrecision(z)}) translate(${toDomPrecision(
 				x + offset
 			)}px,${toDomPrecision(y + offset)}px)`
+
 			setStyleProperty(rHtmlLayer.current, 'transform', transform)
 			setStyleProperty(rHtmlLayer2.current, 'transform', transform)
 		},
@@ -158,6 +160,7 @@ export function DefaultCanvas({ className }: TLCanvasComponentProps) {
 					{hideShapes ? null : debugSvg ? <ShapesWithSVGs /> : <ShapesToDisplay />}
 				</div>
 				<div className="tl-overlays">
+					<CanvasShapeIndicators />
 					<div ref={rHtmlLayer2} className="tl-html-layer">
 						{debugGeometry ? <GeometryDebuggingView /> : null}
 						<BrushWrapper />
@@ -172,10 +175,16 @@ export function DefaultCanvas({ className }: TLCanvasComponentProps) {
 						<LiveCollaborators />
 					</div>
 				</div>
-				<div className="tl-canvas__in-front">
-					<InFrontOfTheCanvasWrapper />
-				</div>
 				<MovingCameraHitTestBlocker />
+			</div>
+			<div
+				className="tl-canvas__in-front"
+				onPointerDown={editor.markEventAsHandled}
+				onPointerUp={editor.markEventAsHandled}
+				onTouchStart={editor.markEventAsHandled}
+				onTouchEnd={editor.markEventAsHandled}
+			>
+				<InFrontOfTheCanvasWrapper />
 			</div>
 			<MenuClickCapture />
 		</>
@@ -203,7 +212,7 @@ function GridWrapper() {
 function ScribbleWrapper() {
 	const editor = useEditor()
 	const scribbles = useValue('scribbles', () => editor.getInstanceState().scribbles, [editor])
-	const zoomLevel = useValue('zoomLevel', () => editor.getZoomLevel(), [editor])
+	const zoomLevel = useValue('zoomLevel', () => editor.getEfficientZoomLevel(), [editor])
 	const { Scribble } = useEditorComponents()
 
 	if (!(Scribble && scribbles.length)) return null
@@ -236,7 +245,7 @@ function ZoomBrushWrapper() {
 function SnapIndicatorWrapper() {
 	const editor = useEditor()
 	const lines = useValue('snapLines', () => editor.snaps.getIndicators(), [editor])
-	const zoomLevel = useValue('zoomLevel', () => editor.getZoomLevel(), [editor])
+	const zoomLevel = useValue('zoomLevel', () => editor.getEfficientZoomLevel(), [editor])
 	const { SnapIndicator } = useEditorComponents()
 
 	if (!(SnapIndicator && lines.length > 0)) return null
@@ -277,7 +286,7 @@ function HandlesWrapperInner({ shapeId }: { shapeId: TLShapeId }) {
 	const editor = useEditor()
 	const { Handles } = useEditorComponents()
 
-	const zoomLevel = useValue('zoomLevel', () => editor.getZoomLevel(), [editor])
+	const zoomLevel = useValue('zoomLevel', () => editor.getEfficientZoomLevel(), [editor])
 
 	const isCoarse = useValue('coarse pointer', () => editor.getInstanceState().isCoarsePointer, [
 		editor,
@@ -405,11 +414,7 @@ function ReflowIfNeeded() {
 		'reflow for culled shapes',
 		() => {
 			const culledShapes = editor.getCulledShapes()
-			if (
-				culledShapesRef.current.size === culledShapes.size &&
-				[...culledShapes].every((id) => culledShapesRef.current.has(id))
-			)
-				return
+			if (culledShapesRef.current === culledShapes) return
 
 			culledShapesRef.current = culledShapes
 			const canvas = document.getElementsByClassName('tl-canvas')
@@ -442,7 +447,19 @@ function HintedShapeIndicator() {
 	const editor = useEditor()
 	const { ShapeIndicator } = useEditorComponents()
 
-	const ids = useValue('hinting shape ids', () => dedupe(editor.getHintingShapeIds()), [editor])
+	const ids = useValue(
+		'hinting shape ids without canvas indicator',
+		() => {
+			// Filter to only shapes that use legacy SVG indicators
+			return dedupe(editor.getHintingShapeIds()).filter((id) => {
+				const shape = editor.getShape(id)
+				if (!shape) return false
+				const util = editor.getShapeUtil(shape)
+				return util.useLegacyIndicator()
+			})
+		},
+		[editor]
+	)
 
 	if (!ids.length) return null
 	if (!ShapeIndicator) return null

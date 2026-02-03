@@ -31,9 +31,9 @@ import {
 	useEditor,
 	useValue,
 } from '@tldraw/editor'
-import { useCallback } from 'react'
-import { startEditingShapeWithLabel } from '../../tools/SelectTool/selectHelpers'
-import { useCurrentTranslation } from '../../ui/hooks/useTranslation/useTranslation'
+import { useCallback, useContext } from 'react'
+import { startEditingShapeWithRichText } from '../../tools/SelectTool/selectHelpers'
+import { TranslationsContext } from '../../ui/hooks/useTranslation/useTranslation'
 import {
 	isEmptyRichText,
 	renderHtmlFromRichTextForMeasurement,
@@ -50,6 +50,7 @@ import {
 } from '../shared/default-shape-constants'
 import { useDefaultColorTheme } from '../shared/useDefaultColorTheme'
 import { useIsReadyForEditing } from '../shared/useEditablePlainText'
+import { useEfficientZoomThreshold } from '../shared/useEfficientZoomThreshold'
 import {
 	CLONE_HANDLE_MARGIN,
 	NOTE_CENTER_OFFSET,
@@ -147,6 +148,7 @@ export class NoteShapeUtil extends ShapeUtil<TLNoteShape> {
 					height: lh,
 					isFilled: true,
 					isLabel: true,
+					excludeFromShapeBounds: true,
 				}),
 			],
 		})
@@ -157,7 +159,7 @@ export class NoteShapeUtil extends ShapeUtil<TLNoteShape> {
 		const isCoarsePointer = this.editor.getInstanceState().isCoarsePointer
 		if (isCoarsePointer) return []
 
-		const zoom = this.editor.getZoomLevel()
+		const zoom = this.editor.getEfficientZoomLevel()
 		if (zoom * scale < 0.25) return []
 
 		const nh = getNoteHeight(shape)
@@ -267,14 +269,11 @@ export class NoteShapeUtil extends ShapeUtil<TLNoteShape> {
 			[this.editor]
 		)
 
-		// todo: consider hiding shadows on dark mode if they're invisible anyway
-
-		const hideShadows = useValue('zoom', () => this.editor.getZoomLevel() < 0.35 / scale, [
-			scale,
-			this.editor,
-		])
-
 		const isDarkMode = useValue('dark mode', () => this.editor.user.getIsDarkMode(), [this.editor])
+
+		// Shadows are hidden when zoomed out far enough or in dark mode
+		let hideShadows = useEfficientZoomThreshold(scale * 0.25)
+		if (isDarkMode) hideShadows = true
 
 		const isSelected = shape.id === this.editor.getOnlySelectedShapeId()
 
@@ -317,6 +316,7 @@ export class NoteShapeUtil extends ShapeUtil<TLNoteShape> {
 							wrap
 							padding={LABEL_PADDING * scale}
 							hasCustomTabBehavior
+							showTextOutline={false}
 							onKeyDown={handleKeyDown}
 						/>
 					)}
@@ -335,6 +335,17 @@ export class NoteShapeUtil extends ShapeUtil<TLNoteShape> {
 				height={toDomPrecision(getNoteHeight(shape))}
 			/>
 		)
+	}
+
+	override useLegacyIndicator() {
+		return false
+	}
+
+	override getIndicatorPath(shape: TLNoteShape): Path2D {
+		const { scale } = shape.props
+		const path = new Path2D()
+		path.roundRect(0, 0, NOTE_SIZE * scale, getNoteHeight(shape), scale)
+		return path
 	}
 
 	override toSvg(shape: TLNoteShape, ctx: SvgExportContext) {
@@ -492,7 +503,8 @@ function getLabelSize(editor: Editor, shape: TLNoteShape) {
 
 function useNoteKeydownHandler(id: TLShapeId) {
 	const editor = useEditor()
-	const translation = useCurrentTranslation()
+	// Try to get the translation context, but fallback to ltr if it doesn't exist
+	const translation = useContext(TranslationsContext)
 
 	return useCallback(
 		(e: KeyboardEvent) => {
@@ -511,7 +523,7 @@ function useNoteKeydownHandler(id: TLShapeId) {
 				// tab controls x axis (shift inverts direction set by RTL)
 				// cmd enter is the y axis (shift inverts direction)
 				const isRTL = !!(
-					translation.dir === 'rtl' ||
+					translation?.dir === 'rtl' ||
 					// todo: can we check a partial of the text, so that we don't have to render the whole thing?
 					isRightToLeftLanguage(renderPlaintextFromRichText(editor, shape.props.richText))
 				)
@@ -535,11 +547,11 @@ function useNoteKeydownHandler(id: TLShapeId) {
 				const newNote = getNoteShapeForAdjacentPosition(editor, shape, adjacentCenter, pageRotation)
 
 				if (newNote) {
-					startEditingShapeWithLabel(editor, newNote, true /* selectAll */)
+					startEditingShapeWithRichText(editor, newNote, { selectAll: true })
 				}
 			}
 		},
-		[id, editor, translation.dir]
+		[id, editor, translation?.dir]
 	)
 }
 

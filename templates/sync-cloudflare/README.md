@@ -10,7 +10,7 @@ This is a production-ready backend for [tldraw sync](https://tldraw.dev/docs/syn
   Durable Object](https://developers.cloudflare.com/durable-objects/).
 - Whiteboards and any uploaded images/videos are stored in a [Cloudflare
   R2](https://developers.cloudflare.com/r2/) bucket.
-- Although unreliated to tldraw sync, this server also includes a component to fetch link previews
+- Although unrelated to tldraw sync, this server also includes a component to fetch link previews
   for URLs added to the canvas.
   This is a minimal setup of the same system that powers multiplayer collaboration for hundreds of
   thousands of rooms & users on www.tldraw.com. Because durable objects effectively create a mini
@@ -18,8 +18,6 @@ This is a production-ready backend for [tldraw sync](https://tldraw.dev/docs/syn
   handles the tricky infrastructure work of ensuring there's only ever one instance of each room, and
   making sure that every user gets connected to that instance. We've found that with this approach,
   each room is able to handle about 50 simultaneous collaborators.
-
-## Overview
 
 [![architecture](./arch.png)](https://www.tldraw.com/ro/Yb_QHJFP9syPZq1YrV3YR?v=-255,-148,2025,1265&p=page)
 

@@ -10,11 +10,10 @@
 	"license": "MIT",
 	"type": "module",
 	"tldraw_template": {
-		"publish": {
-			"repo": "tldraw/vite-template",
-			"name": "Vite + tldraw",
-			"description": "The easiest way to get started with tldraw. Built with Vite, React, and TypeScript.",
-			"category": "framework",
+		"repo": "tldraw/vite-template",
+		"cli": {
+			"name": "Basic",
+			"description": "A minimal tldraw template with Vite, React, and TypeScript.",
 			"order": 1
 		},
 		"scripts": {
@@ -28,13 +27,13 @@
 		"preview": "vite preview"
 	},
 	"dependencies": {
-		"react": "^18.3.1",
-		"react-dom": "^18.3.1",
+		"react": "^19.2.1",
+		"react-dom": "^19.2.1",
 		"tldraw": "workspace:*"
 	},
 	"devDependencies": {
-		"@types/react": "^18.3.18",
-		"@types/react-dom": "^18.3.5",
+		"@types/react": "^19.2.7",
+		"@types/react-dom": "^19.2.3",
 		"@vitejs/plugin-react-swc": "^3.10.2",
 		"typescript": "^5.8.3",
 		"vite": "^7.0.1"

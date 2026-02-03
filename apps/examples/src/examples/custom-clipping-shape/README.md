@@ -1,18 +1,29 @@
 ---
-title: Custom Clipping Shape
+title: Custom clipping shape
 component: ./CustomClippingExample.tsx
 category: editor-api
 priority: 1
-keywords: [clipping, shape]
+keywords:
+  [
+    clipping,
+    clip path,
+    mask,
+    getClipPath,
+    shouldClipChild,
+    polygon,
+    children,
+    parent-child,
+    circular,
+  ]
 ---
 
-# Custom Clipping Shape Example
+# Custom clipping shape example
 
 This example demonstrates the extensible clipping system in tldraw, showing how to create custom shapes that can clip their children with any polygon geometry.
 
-## Key Implementation Details
+## Key implementation details
 
-### ShapeUtil Methods
+### ShapeUtil methods
 
 The clipping system uses two methods in the `ShapeUtil` base class:
 
@@ -24,7 +35,7 @@ getClipPath(shape: Shape): Vec[] | undefined
 shouldClipChild(child: TLShape): boolean
 ```
 
-### Circle Clip Shape
+### Circle clip shape
 
 The `CircleClipShapeUtil` demonstrates:
 
@@ -40,7 +51,7 @@ The `CircleClipShapeUtil` demonstrates:
 3. Click the **"📝 Text Clipping Override"** button to toggle whether text shapes should be clipped (when override is ON, text shapes are not clipped regardless of global setting)
 4. The example starts with demo content already clipped by a circular shape
 
-## Technical Notes
+## Technical notes
 
 - Clip paths are defined in the shape's local coordinate system
 - The Editor automatically transforms them to page space for rendering

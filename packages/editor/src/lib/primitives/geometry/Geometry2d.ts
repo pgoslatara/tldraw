@@ -50,6 +50,7 @@ export interface TransformedGeometry2dOptions {
 	isInternal?: boolean
 	debugColor?: string
 	ignore?: boolean
+	excludeFromShapeBounds?: boolean
 }
 
 /** @public */
@@ -66,11 +67,17 @@ export abstract class Geometry2d {
 	isLabel = false
 	isEmptyLabel = false
 	isInternal = false
+	excludeFromShapeBounds = false
 	debugColor?: string
 	ignore?: boolean
 
 	constructor(opts: Geometry2dOptions) {
-		const { isLabel = false, isEmptyLabel = false, isInternal = false } = opts
+		const {
+			isLabel = false,
+			isEmptyLabel = false,
+			isInternal = false,
+			excludeFromShapeBounds = false,
+		} = opts
 		this.isFilled = opts.isFilled
 		this.isClosed = opts.isClosed
 		this.debugColor = opts.debugColor
@@ -78,6 +85,7 @@ export abstract class Geometry2d {
 		this.isLabel = isLabel
 		this.isEmptyLabel = isEmptyLabel
 		this.isInternal = isInternal
+		this.excludeFromShapeBounds = excludeFromShapeBounds
 	}
 
 	isExcludedByFilter(filters?: Geometry2dFilters) {
@@ -112,6 +120,8 @@ export abstract class Geometry2d {
 	distanceToLineSegment(A: VecLike, B: VecLike, filters?: Geometry2dFilters) {
 		if (Vec.Equals(A, B)) return this.distanceToPoint(A, false, filters)
 		const { vertices } = this
+		if (vertices.length === 0) throw Error('nearest point not found')
+		if (vertices.length === 1) return Vec.Dist(A, vertices[0])
 		let nearest: Vec | undefined
 		let dist = Infinity
 		let d: number, p: Vec, q: Vec
@@ -130,6 +140,7 @@ export abstract class Geometry2d {
 			}
 		}
 		if (!nearest) throw Error('nearest point not found')
+		dist = Math.sqrt(dist) // return the actual distance, not the squared distance
 		return this.isClosed && this.isFilled && pointInPolygon(nearest, this.vertices) ? -dist : dist
 	}
 
@@ -167,6 +178,8 @@ export abstract class Geometry2d {
 	interpolateAlongEdge(t: number, _filters?: Geometry2dFilters): Vec {
 		const { vertices } = this
 
+		if (vertices.length === 0) return new Vec(0, 0)
+		if (vertices.length === 1) return vertices[0]
 		if (t <= 0) return vertices[0]
 
 		const distanceToTravel = t * this.length
@@ -200,6 +213,8 @@ export abstract class Geometry2d {
 		let closestSegment = null
 		let closestDistance = Infinity
 		let distanceTraveled = 0
+
+		if (vertices.length === 0 || vertices.length === 1) return 0
 
 		for (let i = 0; i < (this.isClosed ? vertices.length : vertices.length - 1); i++) {
 			const curr = vertices[i]
@@ -301,8 +316,23 @@ export abstract class Geometry2d {
 		return this._vertices
 	}
 
+	getBoundsVertices(): Vec[] {
+		if (this.excludeFromShapeBounds) return []
+		return this.vertices
+	}
+
+	private _boundsVertices: Vec[] | undefined
+
+	// eslint-disable-next-line no-restricted-syntax
+	get boundsVertices(): Vec[] {
+		if (!this._boundsVertices) {
+			this._boundsVertices = this.getBoundsVertices()
+		}
+		return this._boundsVertices
+	}
+
 	getBounds() {
-		return Box.FromPoints(this.vertices)
+		return Box.FromPoints(this.boundsVertices)
 	}
 
 	private _bounds: Box | undefined
@@ -427,6 +457,10 @@ export class TransformedGeometry2d extends Geometry2d {
 
 	getVertices(filters: Geometry2dFilters): Vec[] {
 		return this.geometry.getVertices(filters).map((v) => Mat.applyToPoint(this.matrix, v))
+	}
+
+	getBoundsVertices(): Vec[] {
+		return this.geometry.getBoundsVertices().map((v) => Mat.applyToPoint(this.matrix, v))
 	}
 
 	nearestPoint(point: VecLike, filters?: Geometry2dFilters): Vec {

@@ -44,7 +44,6 @@ import { LicenseProvider } from './license/LicenseProvider'
 import { Watermark } from './license/Watermark'
 import { TldrawOptions } from './options'
 import { TLDeepLinkOptions } from './utils/deepLinks'
-import { stopEventPropagation } from './utils/dom'
 import { TLTextOptions } from './utils/richText'
 import { TLStoreWithStatus } from './utils/sync/StoreWithStatus'
 
@@ -192,7 +191,7 @@ export interface TldrawEditorBaseProps {
 	 * Provides a way to hide shapes.
 	 *
 	 * Hidden shapes will not render in the editor, and they will not be eligible for hit test via
-	 * {@link Editor#getShapeAtPoint} and {@link Editor#getShapesAtPoint}. But otherwise they will
+	 * {@link @tldraw/editor#Editor.getShapeAtPoint} and {@link @tldraw/editor#Editor.getShapesAtPoint}. But otherwise they will
 	 * remain in the store and participate in all other operations.
 	 *
 	 * @example
@@ -275,7 +274,6 @@ export const TldrawEditor = memo(function TldrawEditor({
 			data-tldraw={version}
 			draggable={false}
 			className={classNames(`${TL_CONTAINER_CLASS} tl-theme__light`, className)}
-			onPointerDown={stopEventPropagation}
 			tabIndex={-1}
 			role="application"
 			aria-label={_options?.branding ?? 'tldraw'}

@@ -23,13 +23,15 @@ describe('UserPreferencesManager', () => {
 		locale: 'en',
 		animationSpeed: 1,
 		areKeyboardShortcutsEnabled: true,
-		showUiLabels: false,
+		enhancedA11yMode: false,
 		edgeScrollSpeed: 1,
 		colorScheme: 'light',
 		isSnapMode: false,
 		isWrapMode: false,
 		isDynamicSizeMode: false,
 		isPasteAtCursorMode: false,
+		inputMode: null,
+		isZoomDirectionInverted: false,
 		...overrides,
 	})
 
@@ -227,12 +229,14 @@ describe('UserPreferencesManager', () => {
 				color: mockUserPreferences.color,
 				animationSpeed: mockUserPreferences.animationSpeed,
 				areKeyboardShortcutsEnabled: mockUserPreferences.areKeyboardShortcutsEnabled,
-				showUiLabels: mockUserPreferences.showUiLabels,
+				enhancedA11yMode: mockUserPreferences.enhancedA11yMode,
 				isSnapMode: mockUserPreferences.isSnapMode,
 				colorScheme: mockUserPreferences.colorScheme,
 				isDarkMode: false, // light mode
 				isWrapMode: mockUserPreferences.isWrapMode,
 				isDynamicResizeMode: mockUserPreferences.isDynamicSizeMode,
+				inputMode: mockUserPreferences.inputMode,
+				isZoomDirectionInverted: mockUserPreferences.isZoomDirectionInverted,
 			})
 		})
 
@@ -376,14 +380,18 @@ describe('UserPreferencesManager', () => {
 			})
 		})
 
-		describe('getShowUiLabels', () => {
-			it('should return user show ui labels setting', () => {
-				expect(userPreferencesManager.getShowUiLabels()).toBe(mockUserPreferences.showUiLabels)
+		describe('getEnhancedA11yMode', () => {
+			it('should return user enhanced a11y mode setting', () => {
+				expect(userPreferencesManager.getEnhancedA11yMode()).toBe(
+					mockUserPreferences.enhancedA11yMode
+				)
 			})
 
-			it('should return default show ui labels when null', () => {
-				userPreferencesAtom.set({ ...mockUserPreferences, showUiLabels: null })
-				expect(userPreferencesManager.getShowUiLabels()).toBe(defaultUserPreferences.showUiLabels)
+			it('should return default enhanced a11y mode when null', () => {
+				userPreferencesAtom.set({ ...mockUserPreferences, enhancedA11yMode: null })
+				expect(userPreferencesManager.getEnhancedA11yMode()).toBe(
+					defaultUserPreferences.enhancedA11yMode
+				)
 			})
 		})
 
@@ -453,6 +461,40 @@ describe('UserPreferencesManager', () => {
 				)
 			})
 		})
+
+		describe('getInputMode', () => {
+			it('should return user input mode setting', () => {
+				expect(userPreferencesManager.getInputMode()).toBe(null)
+			})
+
+			it('should return trackpad if input mode is trackpad', () => {
+				userPreferencesAtom.set({ ...mockUserPreferences, inputMode: 'trackpad' })
+				expect(userPreferencesManager.getInputMode()).toBe('trackpad')
+			})
+
+			it('should return mouse if input mode is mouse', () => {
+				userPreferencesAtom.set({ ...mockUserPreferences, inputMode: 'mouse' })
+				expect(userPreferencesManager.getInputMode()).toBe('mouse')
+			})
+		})
+
+		describe('getIsZoomDirectionInverted', () => {
+			it('should return user zoom direction inverted setting', () => {
+				expect(userPreferencesManager.getIsZoomDirectionInverted()).toBe(false)
+			})
+
+			it('should return default when null', () => {
+				userPreferencesAtom.set({ ...mockUserPreferences, isZoomDirectionInverted: null })
+				expect(userPreferencesManager.getIsZoomDirectionInverted()).toBe(
+					defaultUserPreferences.isZoomDirectionInverted
+				)
+			})
+
+			it('should return true when inverted', () => {
+				userPreferencesAtom.set({ ...mockUserPreferences, isZoomDirectionInverted: true })
+				expect(userPreferencesManager.getIsZoomDirectionInverted()).toBe(true)
+			})
+		})
 	})
 
 	describe('reactive behavior', () => {
@@ -514,6 +556,7 @@ describe('UserPreferencesManager', () => {
 				isWrapMode: null,
 				isDynamicSizeMode: null,
 				isPasteAtCursorMode: null,
+				isZoomDirectionInverted: null,
 			})
 
 			userPreferencesAtom.set(nullPrefs)
@@ -535,6 +578,9 @@ describe('UserPreferencesManager', () => {
 			)
 			expect(userPreferencesManager.getIsPasteAtCursorMode()).toBe(
 				defaultUserPreferences.isPasteAtCursorMode
+			)
+			expect(userPreferencesManager.getIsZoomDirectionInverted()).toBe(
+				defaultUserPreferences.isZoomDirectionInverted
 			)
 		})
 

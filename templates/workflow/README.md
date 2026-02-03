@@ -15,13 +15,11 @@ Run the development server with `yarn dev` or `npm run dev`.
 
 Open `http://localhost:5173/` in your browser to see the app.
 
-## Overview
-
 This starter kit has 3 main concepts:
 
-1. Nodes. Nodes are shapes that accept inputs, and produce outputs.
-2. Connections. A connection joins the output of one node to the input of another.
-3. Ports. Ports are places on nodes that connections can join to.
+1. Nodes: Nodes are shapes that accept inputs, and produce outputs.
+2. Connections: A connection joins the output of one node to the input of another.
+3. Ports: Ports are places on nodes that connections can join to.
 
 There are lots of useful interactions the user can take involving these concepts:
 

@@ -1,6 +1,7 @@
 /// <reference types="react" />
 
 import { registerTldrawLibraryVersion } from '@tldraw/editor'
+export { getPointsFromDrawSegment, getPointsFromDrawSegments } from './lib/shapes/draw/getPath'
 export {
 	PathBuilder,
 	PathBuilderGeometry2d,
@@ -21,6 +22,7 @@ export {
 	type SolidPathBuilderOpts,
 } from './lib/shapes/shared/PathBuilder'
 export { usePrefersReducedMotion } from './lib/shapes/shared/usePrefersReducedMotion'
+export { startEditingShapeWithRichText } from './lib/tools/SelectTool/selectHelpers'
 export { DefaultA11yAnnouncer, useSelectedShapesAnnouncer } from './lib/ui/components/A11y'
 export { AccessibilityMenu } from './lib/ui/components/AccessibilityMenu'
 export { ColorSchemeMenu } from './lib/ui/components/ColorSchemeMenu'
@@ -107,6 +109,13 @@ export {
 export { ArrowShapeTool } from './lib/shapes/arrow/ArrowShapeTool'
 export { ArrowShapeUtil } from './lib/shapes/arrow/ArrowShapeUtil'
 export {
+	clearArrowTargetState,
+	getArrowTargetState,
+	updateArrowTargetState,
+	type ArrowTargetState,
+	type UpdateArrowTargetStateOpts,
+} from './lib/shapes/arrow/arrowTargetState'
+export {
 	type ElbowArrowBox,
 	type ElbowArrowBoxEdges,
 	type ElbowArrowBoxes,
@@ -127,6 +136,7 @@ export {
 	getArrowTerminalsInArrowSpace,
 	type TLArrowBindings,
 } from './lib/shapes/arrow/shared'
+export { createBookmarkFromUrl } from './lib/shapes/bookmark/bookmarks'
 export { BookmarkShapeUtil } from './lib/shapes/bookmark/BookmarkShapeUtil'
 export { DrawShapeTool } from './lib/shapes/draw/DrawShapeTool'
 export { DrawShapeUtil, type DrawShapeOptions } from './lib/shapes/draw/DrawShapeUtil'
@@ -168,7 +178,10 @@ export {
 	type TLDefaultFont,
 	type TLDefaultFonts,
 } from './lib/shapes/shared/defaultFonts'
+export { getStroke } from './lib/shapes/shared/freehand/getStroke'
+export { getStrokeOutlinePoints } from './lib/shapes/shared/freehand/getStrokeOutlinePoints'
 export { getStrokePoints } from './lib/shapes/shared/freehand/getStrokePoints'
+export { setStrokePointRadii } from './lib/shapes/shared/freehand/setStrokePointRadii'
 export { getSvgPathFromStrokePoints } from './lib/shapes/shared/freehand/svg'
 export { type StrokeOptions, type StrokePoint } from './lib/shapes/shared/freehand/types'
 export { PlainTextLabel, type PlainTextLabelProps } from './lib/shapes/shared/PlainTextLabel'
@@ -233,7 +246,10 @@ export {
 	DefaultDebugMenuContent,
 	ExampleDialog,
 	FeatureFlags,
+	type CustomDebugFlags,
+	type DebugFlagsProps,
 	type ExampleDialogProps,
+	type FeatureFlagsProps,
 } from './lib/ui/components/DebugMenu/DefaultDebugMenuContent'
 export { DefaultMenuPanel } from './lib/ui/components/DefaultMenuPanel'
 export {
@@ -296,8 +312,10 @@ export {
 	ToggleDebugModeItem,
 	ToggleDynamicSizeModeItem,
 	ToggleEdgeScrollingItem,
+	ToggleEnhancedA11yModeItem,
 	ToggleFocusModeItem,
 	ToggleGridItem,
+	ToggleInvertZoomItem,
 	ToggleKeyboardShortcutsItem,
 	ToggleLockMenuItem,
 	TogglePasteAtCursorItem,
@@ -305,7 +323,6 @@ export {
 	ToggleSnapModeItem,
 	ToggleToolLockItem,
 	ToggleTransparentBgMenuItem,
-	ToggleUiLabelsItem,
 	ToggleWrapModeItem,
 	UngroupMenuItem,
 	UnlockAllMenuItem,
@@ -421,6 +438,7 @@ export {
 	type TLUiToolbarToggleItemProps,
 } from './lib/ui/components/primitives/TldrawUiToolbar'
 export {
+	hideAllTooltips,
 	TldrawUiTooltip,
 	TldrawUiTooltipProvider,
 	type TldrawUiTooltipProps,
@@ -457,6 +475,7 @@ export {
 } from './lib/ui/components/StylePanel/DefaultStylePanelContent'
 export {
 	StylePanelButtonPicker,
+	StylePanelButtonPickerInline,
 	type StylePanelButtonPickerProps,
 } from './lib/ui/components/StylePanel/StylePanelButtonPicker'
 export {
@@ -467,10 +486,12 @@ export {
 } from './lib/ui/components/StylePanel/StylePanelContext'
 export {
 	StylePanelDoubleDropdownPicker,
+	StylePanelDoubleDropdownPickerInline,
 	type StylePanelDoubleDropdownPickerProps,
 } from './lib/ui/components/StylePanel/StylePanelDoubleDropdownPicker'
 export {
 	StylePanelDropdownPicker,
+	StylePanelDropdownPickerInline,
 	type StylePanelDropdownPickerProps,
 } from './lib/ui/components/StylePanel/StylePanelDropdownPicker'
 export {
@@ -552,7 +573,6 @@ export {
 	CenteredTopPanelContainer,
 	type CenteredTopPanelContainerProps,
 } from './lib/ui/components/TopPanel/CenteredTopPanelContainer'
-export { DefaultTopPanel } from './lib/ui/components/TopPanel/DefaultTopPanel'
 export {
 	DefaultZoomMenu,
 	type TLUiZoomMenuProps,
@@ -671,7 +691,6 @@ export {
 	tipTapDefaultExtensions,
 } from './lib/utils/text/richText'
 export { truncateStringWithEllipsis } from './lib/utils/text/text'
-export { TextDirection } from './lib/utils/text/textDirection'
 export {
 	buildFromV1Document,
 	TLV1AlignStyle,

@@ -7,8 +7,8 @@ import {
 	Rectangle2d,
 	resizeBox,
 	ShapeUtil,
-	TLBaseShape,
 	TLResizeInfo,
+	TLShape,
 	useEditor,
 	useUniqueSafeId,
 	useValue,
@@ -21,24 +21,31 @@ import {
 	getNodeHeightPx,
 	getNodeTypePorts,
 	getNodeWidthPx,
-	NodeDefinitions,
 	NodeType,
 	NodeTypePorts,
 } from './nodeTypes'
 
+const NODE_TYPE = 'node'
+
+declare module 'tldraw' {
+	export interface TLGlobalShapePropsMap {
+		[NODE_TYPE]: { node: NodeType }
+	}
+}
+
 // Define our custom node shape type that extends tldraw's base shape system
-export type NodeShape = TLBaseShape<'node', { node: NodeType }>
+export type NodeShape = TLShape<typeof NODE_TYPE>
 
 // This class extends tldraw's ShapeUtil to define how our custom node shapes behave
 export class NodeShapeUtil extends ShapeUtil<NodeShape> {
-	static override type = 'node' as const
+	static override type = NODE_TYPE
 	static override props: RecordProps<NodeShape> = {
 		node: NodeType,
 	}
 
 	getDefaultProps(): NodeShape['props'] {
 		return {
-			node: NodeDefinitions[0].getDefault(),
+			node: getNodeDefinition(this.editor, 'message').getDefault(),
 		}
 	}
 
@@ -86,8 +93,8 @@ export class NodeShapeUtil extends ShapeUtil<NodeShape> {
 		)
 
 		const bodyGeometry = new Rectangle2d({
-			width: getNodeWidthPx(shape.props.node, this.editor),
-			height: getNodeHeightPx(shape.props.node, this.editor),
+			width: getNodeWidthPx(this.editor, shape),
+			height: getNodeHeightPx(this.editor, shape),
 			isFilled: true,
 		})
 
@@ -114,7 +121,7 @@ export class NodeShapeUtil extends ShapeUtil<NodeShape> {
 function NodeShapeIndicator({ shape, ports }: { shape: NodeShape; ports: NodeTypePorts }) {
 	const editor = useEditor()
 	const id = useUniqueSafeId()
-	const height = useValue('height', () => getNodeHeightPx(shape.props.node, editor), [
+	const height = useValue('height', () => getNodeHeightPx(editor, shape), [
 		shape.props.node,
 		editor,
 	])
@@ -151,8 +158,8 @@ function NodeShape({ shape }: { shape: NodeShape }) {
 		<HTMLContainer
 			className={classNames('NodeShape')}
 			style={{
-				width: getNodeWidthPx(shape.props.node, editor),
-				height: getNodeHeightPx(shape.props.node, editor),
+				width: getNodeWidthPx(editor, shape),
+				height: getNodeHeightPx(editor, shape),
 			}}
 		>
 			<NodeBody shape={shape} />
@@ -163,16 +170,14 @@ function NodeShape({ shape }: { shape: NodeShape }) {
 
 function NodeBody({ shape }: { shape: NodeShape }) {
 	const node = shape.props.node
-	const { Component } = getNodeDefinition(node)
+	const editor = useEditor()
+	const { Component } = getNodeDefinition(editor, node)
 	return <Component shape={shape} node={node} />
 }
 
 function NodePorts({ shape }: { shape: NodeShape }) {
 	const editor = useEditor()
-	const ports = useValue('node ports', () => getNodeTypePorts(shape.props.node, editor), [
-		shape.props.node,
-		editor,
-	])
+	const ports = useValue('node ports', () => getNodeTypePorts(editor, shape), [shape, editor])
 	return (
 		<>
 			{Object.values(ports).map((port) => (

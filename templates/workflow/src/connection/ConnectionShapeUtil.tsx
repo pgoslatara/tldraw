@@ -7,15 +7,14 @@ import {
 	RecordProps,
 	SVGContainer,
 	ShapeUtil,
-	TLBaseShape,
 	TLHandle,
 	TLHandleDragInfo,
+	TLShape,
 	Vec,
 	VecLike,
 	VecModel,
 	clamp,
 	createShapeId,
-	stopEventPropagation,
 	useEditor,
 	useValue,
 	vecModelValidator,
@@ -25,7 +24,7 @@ import {
 	CONNECTION_CENTER_HANDLE_HOVER_SIZE_PX,
 	CONNECTION_CENTER_HANDLE_SIZE_PX,
 } from '../constants'
-import { getAllConnectedNodes, getNodeOutputPortValues, getNodePorts } from '../nodes/nodePorts'
+import { getAllConnectedNodes, getNodeOutputPortInfo, getNodePorts } from '../nodes/nodePorts'
 import { STOP_EXECUTION } from '../nodes/types/shared'
 import { getPortAtPoint } from '../ports/getPortAtPoint'
 import { updatePortState } from '../ports/portState'
@@ -37,6 +36,17 @@ import {
 } from './ConnectionBindingUtil'
 import { insertNodeWithinConnection } from './insertNodeWithinConnection'
 
+const CONNECTION_TYPE = 'connection'
+
+declare module 'tldraw' {
+	export interface TLGlobalShapePropsMap {
+		[CONNECTION_TYPE]: {
+			start: VecModel
+			end: VecModel
+		}
+	}
+}
+
 /**
  * A connection shape is a directed connection between two node shapes. It has a start point, and an
  * end point. These are called "terminals" in the code.
@@ -46,16 +56,10 @@ import { insertNodeWithinConnection } from './insertNodeWithinConnection'
  * the connection, but only when there isn't a binding (ie while dragging the connection). When the
  * ends are bound, the position is derived from the connected shape instead.
  */
-export type ConnectionShape = TLBaseShape<
-	'connection',
-	{
-		start: VecModel
-		end: VecModel
-	}
->
+export type ConnectionShape = TLShape<typeof CONNECTION_TYPE>
 
 export class ConnectionShapeUtil extends ShapeUtil<ConnectionShape> {
-	static override type = 'connection' as const
+	static override type = CONNECTION_TYPE
 	static override props: RecordProps<ConnectionShape> = {
 		start: vecModelValidator,
 		end: vecModelValidator,
@@ -313,9 +317,9 @@ function ConnectionShape({ connection }: { connection: ConnectionShape }) {
 			if (!bindings.start) return false
 			const originShapeId = bindings.start?.toId
 			if (!originShapeId) return false
-			const outputs = getNodeOutputPortValues(editor, originShapeId)
-			const outputValue = outputs[bindings.start.props.portId]
-			return outputValue === STOP_EXECUTION
+			const outputs = getNodeOutputPortInfo(editor, originShapeId)
+			const output = outputs[bindings.start.props.portId]
+			return output.value === STOP_EXECUTION
 		},
 		[connection.id, editor]
 	)
@@ -360,7 +364,7 @@ function ConnectionCenterHandle({
 			style={{
 				transform: `translate(${center.x}px, ${center.y}px) scale(max(0.5, calc(1 / var(--tl-zoom))))`,
 			}}
-			onPointerDown={stopEventPropagation}
+			onPointerDown={editor.markEventAsHandled}
 			onClick={() => {
 				insertNodeWithinConnection(editor, connection)
 			}}

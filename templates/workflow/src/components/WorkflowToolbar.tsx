@@ -31,7 +31,7 @@ import {
 	XBoxToolbarItem,
 } from 'tldraw'
 import { NodeShape } from '../nodes/NodeShapeUtil'
-import { NodeDefinitions, NodeType } from '../nodes/nodeTypes'
+import { getNodeDefinitions, NodeType } from '../nodes/nodeTypes'
 import { MATH_MENU_ID, MathematicalToolbarItem } from './MathematicalToolbarItem'
 
 function createNodeShape(editor: Editor, shapeId: TLShapeId, center: Vec, node: NodeType) {
@@ -40,7 +40,7 @@ function createNodeShape(editor: Editor, shapeId: TLShapeId, center: Vec, node: 
 
 	editor.run(() => {
 		// Create the shape with the node definition
-		editor.createShape<NodeShape>({
+		editor.createShape({
 			id: shapeId,
 			type: 'node',
 			props: { node },
@@ -64,7 +64,7 @@ function createNodeShape(editor: Editor, shapeId: TLShapeId, center: Vec, node: 
 
 export const overrides: TLUiOverrides = {
 	tools: (editor, tools, _) => {
-		for (const nodeDef of NodeDefinitions) {
+		for (const nodeDef of Object.values(getNodeDefinitions(editor))) {
 			tools[`node-${nodeDef.type}`] = {
 				id: `node-${nodeDef.type}`,
 				label: nodeDef.title,
@@ -81,7 +81,7 @@ export const overrides: TLUiOverrides = {
 				onDragStart: (_, info) => {
 					onDragFromToolbarToCreateShape(editor, info, {
 						createShape: (id) => {
-							editor.createShape<NodeShape>({
+							editor.createShape({
 								id,
 								type: 'node',
 								props: { node: nodeDef.getDefault() },
@@ -100,7 +100,7 @@ export const overrides: TLUiOverrides = {
 
 export function WorkflowToolbar() {
 	return (
-		<DefaultToolbar orientation="vertical" maxItems={7}>
+		<DefaultToolbar orientation="vertical" maxItems={8}>
 			<TldrawUiMenuGroup id="selection">
 				<SelectToolbarItem />
 				<HandToolbarItem />
@@ -112,6 +112,7 @@ export function WorkflowToolbar() {
 				<MathematicalToolbarItem />
 				<ToolbarItem tool="node-slider" />
 				<ToolbarItem tool="node-conditional" />
+				<ToolbarItem tool="node-earthquake" />
 			</TldrawUiMenuGroup>
 
 			<TldrawUiMenuGroup id="shapes">

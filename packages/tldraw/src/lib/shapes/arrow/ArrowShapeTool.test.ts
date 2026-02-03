@@ -1,6 +1,8 @@
 import { IndexKey, TLArrowShape, TLShapeId, Vec, createShapeId } from '@tldraw/editor'
 import { vi } from 'vitest'
 import { TestEditor } from '../../../test/TestEditor'
+import { defaultShapeUtils } from '../../defaultShapeUtils'
+import { ArrowShapeUtil } from './ArrowShapeUtil'
 import { getArrowTargetState } from './arrowTargetState'
 import { getArrowBindings } from './shared'
 
@@ -26,8 +28,8 @@ function bindings(id: TLShapeId) {
 	return getArrowBindings(editor, editor.getShape(id) as TLArrowShape)
 }
 
-beforeEach(() => {
-	editor = new TestEditor()
+function init(opts?: ConstructorParameters<typeof TestEditor>[0]) {
+	editor = new TestEditor(opts)
 	editor
 		.selectAll()
 		.deleteShapes(editor.getSelectedShapeIds())
@@ -36,7 +38,9 @@ beforeEach(() => {
 			{ id: ids.box2, type: 'geo', x: 300, y: 300, props: { w: 100, h: 100 } },
 			{ id: ids.box3, type: 'geo', x: 350, y: 350, props: { w: 50, h: 50 } }, // overlapping box2, but smaller!
 		])
-})
+}
+
+beforeEach(init)
 
 it('enters the arrow state', () => {
 	editor.setCurrentTool('arrow')
@@ -140,7 +144,7 @@ describe('When pointing a start shape', () => {
 		expect(getArrowTargetState(editor)).not.toBeNull()
 
 		// Fake some velocity
-		editor.inputs.pointerVelocity = new Vec(1, 1)
+		editor.inputs.setPointerVelocity(new Vec(1, 1))
 
 		editor.pointerMove(375, 500)
 
@@ -185,7 +189,7 @@ describe('When pointing an end shape', () => {
 		expect(editor.getHintingShapeIds().length).toBe(0)
 
 		// Fake some velocity
-		editor.inputs.pointerVelocity = new Vec(1, 1)
+		editor.inputs.setPointerVelocity(new Vec(1, 1))
 
 		// Move onto shape
 		editor.pointerMove(375, 375)
@@ -223,7 +227,7 @@ describe('When pointing an end shape', () => {
 	it('unbinds and rebinds', () => {
 		editor.setCurrentTool('arrow').pointerDown(0, 0)
 
-		editor.inputs.pointerVelocity = new Vec(1, 1)
+		editor.inputs.setPointerVelocity(new Vec(1, 1))
 
 		editor.pointerMove(375, 375)
 
@@ -279,7 +283,7 @@ describe('When pointing an end shape', () => {
 		})
 
 		// Build up some velocity
-		editor.inputs.pointerVelocity = new Vec(1, 1)
+		editor.inputs.setPointerVelocity(new Vec(1, 1))
 		editor.pointerMove(325, 325)
 		expect(getArrowTargetState(editor)).not.toBeNull()
 
@@ -399,7 +403,7 @@ describe('When pointing an end shape', () => {
 
 	it('begins imprecise when moving quickly', () => {
 		editor.setCurrentTool('arrow').pointerDown(0, 0)
-		editor.inputs.pointerVelocity = new Vec(1, 1)
+		editor.inputs.setPointerVelocity(new Vec(1, 1))
 		editor.pointerMove(370, 370)
 
 		const arrow = editor.getCurrentPageShapes()[editor.getCurrentPageShapes().length - 1]
@@ -431,7 +435,7 @@ describe('When pointing an end shape', () => {
 
 		expect(getArrowTargetState(editor)).toBeNull()
 
-		editor.inputs.pointerVelocity = new Vec(0.001, 0.001)
+		editor.inputs.setPointerVelocity(new Vec(0.001, 0.001))
 		editor.pointerMove(375, 375)
 
 		arrow = editor.getCurrentPageShapes()[editor.getCurrentPageShapes().length - 1]
@@ -569,12 +573,102 @@ describe('reparenting issue', () => {
 		const arrow1BoundIndex = editor.getShape(arrow1Id)!.index
 		const arrow2BoundIndex = editor.getShape(arrow2Id)!.index
 		expect(arrow1BoundIndex).toBe('a1V')
-		expect(arrow2BoundIndex).toBe('a1F')
+		expect(arrow2BoundIndex).toBe('a1G')
 
 		// nudge everything around and make sure we all stay in the right order
 		editor.selectAll().nudgeShapes(editor.getSelectedShapeIds(), { x: -1, y: 0 })
 		expect(editor.getShape(arrow1Id)!.index).toBe('a1V')
-		expect(editor.getShape(arrow2Id)!.index).toBe('a1F')
+		expect(editor.getShape(arrow2Id)!.index).toBe('a1G')
+	})
+})
+
+describe('precision timeout configuration', () => {
+	it('uses a timeout when dragging arrow handles', () => {
+		// Create an arrow first
+
+		editor.setCurrentTool('arrow').pointerDown(0, 0)
+		// Use high velocity to avoid precise mode immediately
+		editor.inputs.setPointerVelocity(new Vec(1, 1))
+		editor.pointerMove(100, 100)
+
+		const arrow = editor.getCurrentPageShapes()[
+			editor.getCurrentPageShapes().length - 1
+		] as TLArrowShape
+
+		editor.expectToBeIn('select.dragging_handle')
+
+		expect(bindings(arrow.id)).toMatchObject({
+			end: {
+				toId: ids.box1,
+				props: {
+					isPrecise: false,
+				},
+			},
+		})
+
+		vi.advanceTimersByTime(1000)
+
+		expect(bindings(arrow.id)).toMatchObject({
+			end: {
+				toId: ids.box1,
+				props: {
+					isPrecise: true,
+				},
+			},
+		})
+	})
+
+	it('allows configuring the pointingPreciseTimeout', () => {
+		init({
+			shapeUtils: [
+				...defaultShapeUtils.map((s) =>
+					s.type === 'arrow' ? ArrowShapeUtil.configure({ pointingPreciseTimeout: 2000 }) : s
+				),
+			],
+		})
+		// Create an arrow first
+
+		editor.setCurrentTool('arrow').pointerDown(0, 0)
+		// Use high velocity to avoid precise mode immediately
+		editor.inputs.setPointerVelocity(new Vec(1, 1))
+		editor.pointerMove(100, 100)
+
+		const arrow = editor.getCurrentPageShapes()[
+			editor.getCurrentPageShapes().length - 1
+		] as TLArrowShape
+
+		editor.expectToBeIn('select.dragging_handle')
+
+		expect(bindings(arrow.id)).toMatchObject({
+			end: {
+				toId: ids.box1,
+				props: {
+					isPrecise: false,
+				},
+			},
+		})
+
+		vi.advanceTimersByTime(1000)
+
+		expect(bindings(arrow.id)).toMatchObject({
+			end: {
+				toId: ids.box1,
+				props: {
+					isPrecise: false,
+				},
+			},
+		})
+
+		vi.advanceTimersByTime(1000)
+
+		expect(bindings(arrow.id)).toMatchObject({
+			end: {
+				toId: ids.box1,
+				props: {
+					isPrecise: true,
+				},
+			},
+		})
 	})
 })
 

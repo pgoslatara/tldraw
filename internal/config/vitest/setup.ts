@@ -50,6 +50,21 @@ if (typeof HTMLImageElement !== 'undefined') {
 	}
 }
 
+// Path2D polyfills
+if (typeof Path2D !== 'undefined' && !Path2D.prototype.roundRect) {
+	Path2D.prototype.roundRect = function (x, y, w, h, _) {
+		this.rect(x, y, w, h)
+	}
+}
+
+// CSS.supports polyfill for tests that use color spaces (e.g., highlight shapes)
+if (typeof CSS === 'undefined') {
+	;(global as any).CSS = {}
+}
+if (typeof CSS.supports === 'undefined') {
+	CSS.supports = () => false
+}
+
 function convertNumbersInObject(obj: any, roundToNearest: number): any {
 	if (!obj) return obj
 	if (Array.isArray(obj)) {
@@ -94,7 +109,6 @@ expect.extend({
 
 		const message = pass
 			? () =>
-					// eslint-disable-next-line prefer-template
 					matcherHint(matcherName, undefined, undefined, options) +
 					'\n\n' +
 					`Expected: not ${printExpected(expected)}` +
@@ -102,7 +116,6 @@ expect.extend({
 						? `\nReceived:     ${printReceived(actual)}`
 						: '')
 			: () =>
-					// eslint-disable-next-line prefer-template
 					matcherHint(matcherName, undefined, undefined, options) +
 					'\n\n' +
 					printDiffOrStringify(

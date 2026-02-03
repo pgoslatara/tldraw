@@ -3,7 +3,7 @@ import { Slider as _Slider } from 'radix-ui'
 import React, { useCallback, useEffect, useState } from 'react'
 import { TLUiTranslationKey } from '../../hooks/useTranslation/TLUiTranslationKey'
 import { useTranslation } from '../../hooks/useTranslation/useTranslation'
-import { TldrawUiTooltip, tooltipManager } from './TldrawUiTooltip'
+import { hideAllTooltips, TldrawUiTooltip } from './TldrawUiTooltip'
 
 /** @public */
 export interface TLUiSliderProps {
@@ -13,7 +13,7 @@ export interface TLUiSliderProps {
 	label: string
 	title: string
 	onValueChange(value: number): void
-	onHistoryMark(id: string): void
+	onHistoryMark?(id: string): void
 	'data-testid'?: string
 	ariaValueModifier?: number
 }
@@ -52,8 +52,8 @@ export const TldrawUiSlider = React.forwardRef<HTMLDivElement, TLUiSliderProps>(
 	)
 
 	const handlePointerDown = useCallback(() => {
-		tooltipManager.hideAllTooltips()
-		onHistoryMark('click slider')
+		hideAllTooltips()
+		onHistoryMark?.('click slider')
 	}, [onHistoryMark])
 
 	// N.B. This is a bit silly. The Radix slider auto-focuses which

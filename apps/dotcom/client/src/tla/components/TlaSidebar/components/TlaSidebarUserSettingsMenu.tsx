@@ -27,6 +27,7 @@ export function TlaUserSettingsMenu() {
 	const app = useApp()
 	const userMenuLbl = useMsg(messages.userMenu)
 	const user = useValue('auth', () => app.getUser(), [app])
+
 	if (!user) return null
 
 	return (

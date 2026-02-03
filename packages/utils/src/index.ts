@@ -73,6 +73,7 @@ export {
 	getIndicesBelow,
 	getIndicesBetween,
 	sortByIndex,
+	sortByMaybeIndex,
 	validateIndexKey,
 	ZERO_INDEX_KEY,
 	type IndexKey,
@@ -90,7 +91,7 @@ export {
 	setInSessionStorage,
 } from './lib/storage'
 export { stringEnum } from './lib/stringEnum'
-export { fpsThrottle, throttleToNextFrame } from './lib/throttle'
+export { FpsScheduler, fpsThrottle, throttleToNextFrame } from './lib/throttle'
 export { Timers } from './lib/timers'
 export {
 	type Expand,

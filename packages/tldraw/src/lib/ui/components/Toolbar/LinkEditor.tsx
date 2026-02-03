@@ -1,10 +1,10 @@
-import { preventDefault, TiptapEditor, useEditor } from '@tldraw/editor'
+import { openWindow, preventDefault, TiptapEditor, useEditor } from '@tldraw/editor'
 import { useEffect, useRef, useState } from 'react'
 import { useUiEvents } from '../../context/events'
 import { useTranslation } from '../../hooks/useTranslation/useTranslation'
+import { TldrawUiButton } from '../primitives/Button/TldrawUiButton'
 import { TldrawUiButtonIcon } from '../primitives/Button/TldrawUiButtonIcon'
 import { TldrawUiInput } from '../primitives/TldrawUiInput'
-import { TldrawUiToolbarButton } from '../primitives/TldrawUiToolbar'
 
 /** @public */
 export interface LinkEditorProps {
@@ -31,7 +31,7 @@ export function LinkEditor({ textEditor, value: initialValue, onClose }: LinkEdi
 			link = `https://${link}`
 		}
 
-		textEditor.commands.setLink({ href: link })
+		textEditor.chain().setLink({ href: link }).run()
 		// N.B. We shouldn't focus() on mobile because it causes the
 		// Return key to replace the link with a newline :facepalm:
 		if (editor.getInstanceState().isCoarsePointer) {
@@ -44,7 +44,7 @@ export function LinkEditor({ textEditor, value: initialValue, onClose }: LinkEdi
 
 	const handleVisitLink = () => {
 		trackEvent('rich-text', { operation: 'link-visit', source })
-		window.open(linkifiedValue, '_blank', 'noopener, noreferrer')
+		openWindow(linkifiedValue, '_blank')
 		onClose()
 	}
 
@@ -75,8 +75,9 @@ export function LinkEditor({ textEditor, value: initialValue, onClose }: LinkEdi
 				onComplete={handleLinkComplete}
 				onCancel={handleLinkCancel}
 				placeholder="example.com"
+				aria-label="example.com"
 			/>
-			<TldrawUiToolbarButton
+			<TldrawUiButton
 				className="tlui-rich-text__toolbar-link-visit"
 				title={msg('tool.rich-text-link-visit')}
 				type="icon"
@@ -85,8 +86,8 @@ export function LinkEditor({ textEditor, value: initialValue, onClose }: LinkEdi
 				disabled={!value}
 			>
 				<TldrawUiButtonIcon small icon="external-link" />
-			</TldrawUiToolbarButton>
-			<TldrawUiToolbarButton
+			</TldrawUiButton>
+			<TldrawUiButton
 				className="tlui-rich-text__toolbar-link-remove"
 				title={msg('tool.rich-text-link-remove')}
 				data-testid="rich-text.link-remove"
@@ -95,7 +96,7 @@ export function LinkEditor({ textEditor, value: initialValue, onClose }: LinkEdi
 				onClick={handleRemoveLink}
 			>
 				<TldrawUiButtonIcon small icon="trash" />
-			</TldrawUiToolbarButton>
+			</TldrawUiButton>
 		</>
 	)
 }
