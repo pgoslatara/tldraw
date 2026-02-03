@@ -1,4 +1,5 @@
 import { createShapeId } from '@tldraw/editor'
+import { vi } from 'vitest'
 import { TestEditor } from '../TestEditor'
 
 let editor: TestEditor
@@ -10,7 +11,7 @@ const ids = {
 	boxD: createShapeId('boxD'),
 }
 
-jest.useFakeTimers()
+vi.useFakeTimers()
 
 beforeEach(() => {
 	editor = new TestEditor()
@@ -39,11 +40,25 @@ beforeEach(() => {
 })
 
 describe('editor.packShapes', () => {
+	it('packs shapes using the adjacent shape margin option', () => {
+		// @ts-expect-error - testing private api
+		editor.options.adjacentShapeMargin = 1
+		editor.selectAll()
+		const centerBefore = editor.getSelectionRotatedPageBounds()!.center.clone()
+		editor.packShapes(editor.getSelectedShapeIds())
+		vi.advanceTimersByTime(1000)
+		expect(
+			editor.getCurrentPageShapes().map((s) => ({ ...s, parentId: 'wahtever' }))
+		).toMatchSnapshot('packed shapes')
+		const centerAfter = editor.getSelectionRotatedPageBounds()!.center.clone()
+		expect(centerBefore).toMatchObject(centerAfter)
+	})
+
 	it('packs shapes', () => {
 		editor.selectAll()
 		const centerBefore = editor.getSelectionRotatedPageBounds()!.center.clone()
 		editor.packShapes(editor.getSelectedShapeIds(), 16)
-		jest.advanceTimersByTime(1000)
+		vi.advanceTimersByTime(1000)
 		expect(
 			editor.getCurrentPageShapes().map((s) => ({ ...s, parentId: 'wahtever' }))
 		).toMatchSnapshot('packed shapes')
@@ -54,7 +69,7 @@ describe('editor.packShapes', () => {
 	it('packs rotated shapes', () => {
 		editor.updateShapes([{ id: ids.boxA, type: 'geo', rotation: Math.PI }])
 		editor.selectAll().packShapes(editor.getSelectedShapeIds(), 16)
-		jest.advanceTimersByTime(1000)
+		vi.advanceTimersByTime(1000)
 		expect(
 			editor.getCurrentPageShapes().map((s) => ({ ...s, parentId: 'wahtever' }))
 		).toMatchSnapshot('packed shapes')

@@ -9,20 +9,33 @@ import { useEditorComponents } from '../../hooks/useEditorComponents'
 import { OptionalErrorBoundary } from '../ErrorBoundary'
 
 // need an extra layer of indirection here to allow hooks to be used inside the indicator render
-const EvenInnererIndicator = ({ shape, util }: { shape: TLShape; util: ShapeUtil<any> }) => {
-	return useStateTracking('Indicator: ' + shape.type, () =>
-		// always fetch the latest shape from the store even if the props/meta have not changed, to avoid
-		// calling the render method with stale data.
-		util.indicator(util.editor.store.unsafeGetWithoutCapture(shape.id) as TLShape)
-	)
-}
+const EvenInnererIndicator = memo(
+	({ shape, util }: { shape: TLShape; util: ShapeUtil<any> }) => {
+		return useStateTracking('Indicator: ' + shape.type, () =>
+			// always fetch the latest shape from the store even if the props/meta have not changed, to avoid
+			// calling the render method with stale data.
+			util.indicator(util.editor.store.unsafeGetWithoutCapture(shape.id) as TLShape)
+		)
+	},
+	(prevProps, nextProps) => {
+		return (
+			prevProps.shape.props === nextProps.shape.props &&
+			prevProps.shape.meta === nextProps.shape.meta
+		)
+	}
+)
 
-const InnerIndicator = ({ editor, id }: { editor: Editor; id: TLShapeId }) => {
+const InnerIndicator = memo(({ editor, id }: { editor: Editor; id: TLShapeId }) => {
 	const shape = useValue('shape for indicator', () => editor.store.get(id), [editor, id])
 
 	const { ShapeIndicatorErrorFallback } = useEditorComponents()
 
 	if (!shape || shape.isLocked) return null
+
+	const util = editor.getShapeUtil(shape)
+
+	// If the shape uses canvas indicators, it will be rendered by CanvasShapeIndicators
+	if (!util.useLegacyIndicator()) return null
 
 	return (
 		<OptionalErrorBoundary
@@ -31,10 +44,10 @@ const InnerIndicator = ({ editor, id }: { editor: Editor; id: TLShapeId }) => {
 				editor.annotateError(error, { origin: 'react.shapeIndicator', willCrashApp: false })
 			}
 		>
-			<EvenInnererIndicator key={shape.id} shape={shape} util={editor.getShapeUtil(shape)} />
+			<EvenInnererIndicator key={shape.id} shape={shape} util={util} />
 		</OptionalErrorBoundary>
 	)
-}
+})
 
 /** @public */
 export interface TLShapeIndicatorProps {
@@ -61,13 +74,14 @@ export const DefaultShapeIndicator = memo(function DefaultShapeIndicator({
 	useQuickReactor(
 		'indicator transform',
 		() => {
+			if (hidden) return
 			const elm = rIndicator.current
 			if (!elm) return
 			const pageTransform = editor.getShapePageTransform(shapeId)
 			if (!pageTransform) return
 			elm.style.setProperty('transform', pageTransform.toCssString())
 		},
-		[editor, shapeId]
+		[editor, shapeId, hidden]
 	)
 
 	useLayoutEffect(() => {
@@ -77,8 +91,12 @@ export const DefaultShapeIndicator = memo(function DefaultShapeIndicator({
 	}, [hidden])
 
 	return (
-		<svg ref={rIndicator} className={classNames('tl-overlays__item', className)}>
-			<g className="tl-shape-indicator" stroke={color ?? 'var(--color-selected)'} opacity={opacity}>
+		<svg ref={rIndicator} className={classNames('tl-overlays__item', className)} aria-hidden="true">
+			<g
+				className="tl-shape-indicator"
+				stroke={color ?? 'var(--tl-color-selected)'}
+				opacity={opacity}
+			>
 				<InnerIndicator editor={editor} id={shapeId} />
 			</g>
 		</svg>

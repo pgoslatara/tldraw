@@ -5,6 +5,7 @@ import { useTranslation } from '../../hooks/useTranslation/useTranslation'
 import { TldrawUiButton } from '../primitives/Button/TldrawUiButton'
 import { TldrawUiButtonIcon } from '../primitives/Button/TldrawUiButtonIcon'
 import { TldrawUiIcon } from '../primitives/TldrawUiIcon'
+import { TldrawUiRow } from '../primitives/layout'
 
 export const PeopleMenuItem = track(function PeopleMenuItem({ userId }: { userId: string }) {
 	const editor = useEditor()
@@ -29,15 +30,20 @@ export const PeopleMenuItem = track(function PeopleMenuItem({ userId }: { userId
 	if (!presence) return null
 
 	return (
-		<div className="tlui-people-menu__item tlui-buttons__horizontal">
+		<TldrawUiRow
+			className="tlui-people-menu__item"
+			data-follow={youAreFollowingThem || theyAreFollowingYou}
+		>
 			<TldrawUiButton
 				type="menu"
 				className="tlui-people-menu__item__button"
 				onClick={() => editor.zoomToUser(userId)}
 				onDoubleClick={handleFollowClick}
 			>
-				<TldrawUiIcon icon="color" color={presence.color} />
-				<div className="tlui-people-menu__name">{presence.userName ?? 'New User'}</div>
+				<TldrawUiIcon label={msg('people-menu.avatar-color')} icon="color" color={presence.color} />
+				<div className="tlui-people-menu__name">
+					{presence.userName?.trim() || msg('people-menu.anonymous-user')}
+				</div>
 			</TldrawUiButton>
 			<TldrawUiButton
 				type="icon"
@@ -51,12 +57,11 @@ export const PeopleMenuItem = track(function PeopleMenuItem({ userId }: { userId
 				}
 				onClick={handleFollowClick}
 				disabled={theyAreFollowingYou}
-				data-active={youAreFollowingThem || theyAreFollowingYou}
 			>
 				<TldrawUiButtonIcon
 					icon={theyAreFollowingYou ? 'leading' : youAreFollowingThem ? 'following' : 'follow'}
 				/>
 			</TldrawUiButton>
-		</div>
+		</TldrawUiRow>
 	)
 })

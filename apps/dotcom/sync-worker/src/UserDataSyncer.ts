@@ -2,35 +2,43 @@ import {
 	DB,
 	OptimisticAppStore,
 	TlaFile,
-	TlaRow,
+	TlaFileState,
+	TlaGroup,
+	TlaGroupFile,
+	TlaGroupUser,
+	TlaUser,
 	ZEvent,
 	ZRowUpdate,
-	ZServerSentMessage,
+	ZServerSentPacket,
 	ZStoreData,
-	ZTable,
 } from '@tldraw/dotcom-shared'
-import { transact } from '@tldraw/state'
-import { ExecutionQueue, assert, promiseWithResolve, sleep, uniqueId } from '@tldraw/utils'
-import { createSentry } from '@tldraw/worker-shared'
-import { Kysely } from 'kysely'
-import { Logger } from './Logger'
+import { react, transact } from '@tldraw/state'
 import {
-	fileKeys,
-	fileStateKeys,
-	getFetchUserDataSql,
-	parseResultRow,
-	userKeys,
-} from './getFetchEverythingSql'
-import { Environment, TLUserDurableObjectEvent } from './types'
+	ExecutionQueue,
+	assert,
+	objectMapEntries,
+	promiseWithResolve,
+	sleep,
+	uniqueId,
+} from '@tldraw/utils'
+import { createSentry } from '@tldraw/worker-shared'
+import { CompiledQuery, Kysely, sql } from 'kysely'
+import throttle from 'lodash.throttle'
+import { Logger } from './Logger'
+import { fetchEverythingSql } from './fetchEverythingSql.snap'
+import { parseResultRow } from './parseResultRow'
+import { TopicSubscriptionTree, getSubscriptionChanges } from './replicator/Subscription'
+import { ReplicatedRow, ReplicatedTable } from './replicator/replicatorTypes'
+import { Environment, TLUserDurableObjectEvent, getUserDoSnapshotKey } from './types'
 import { getReplicator, getStatsDurableObjct } from './utils/durableObjects'
 import { retryOnConnectionFailure } from './utils/retryOnConnectionFailure'
+import { ChangeAccumulator } from './zero/ServerCrud'
 type PromiseWithResolve = ReturnType<typeof promiseWithResolve>
 
 export interface ZRowUpdateEvent {
 	type: 'row_update'
-	userId: string
-	row: TlaRow
-	table: ZTable
+	row: ReplicatedRow
+	table: ReplicatedTable
 	event: ZEvent
 }
 
@@ -81,7 +89,7 @@ type BootState =
 			lastSequenceNumber: number
 	  }
 
-const stateVersion = 0
+const stateVersion = 4
 interface StateSnapshot {
 	version: number
 	initialData: ZStoreData
@@ -89,7 +97,87 @@ interface StateSnapshot {
 		updates: ZRowUpdate[]
 		mutationId: string
 	}>
+	sequenceId: string
+	lastSequenceNumber: number
 }
+
+const notASequenceId = 'not_a_sequence'
+// Legacy interfaces for migration - inlined here since they're only used in this migration function
+interface LegacyZStoreDataV0 {
+	files: TlaFile[]
+	fileStates: TlaFileState[]
+	user: TlaUser
+	lsn: string
+}
+
+interface LegacyZStoreDataV1 {
+	file: TlaFile[]
+	file_state: TlaFileState[]
+	user: TlaUser[]
+	lsn: string
+}
+
+interface LegacyZStoreDataV3 {
+	file: TlaFile[]
+	file_state: TlaFileState[]
+	user: TlaUser[]
+	group: TlaGroup[]
+	group_user: TlaGroupUser[]
+	group_file: TlaGroupFile[]
+	lsn: string
+}
+
+function migrateStateSnapshot(snapshot: any) {
+	if (snapshot.version === 0) {
+		snapshot.version = 1
+		const data = snapshot.initialData as LegacyZStoreDataV0
+		snapshot.initialData = {
+			lsn: data.lsn,
+			user: [data.user],
+			file: data.files,
+			file_state: data.fileStates,
+		} satisfies LegacyZStoreDataV1
+	}
+
+	if (snapshot.version === 1) {
+		snapshot.version = 2
+		snapshot.sequenceId = notASequenceId
+		snapshot.lastSequenceNumber = 0
+	}
+
+	if (snapshot.version === 2) {
+		snapshot.version = 3
+		const data = snapshot.initialData as LegacyZStoreDataV1
+		snapshot.initialData = {
+			lsn: data.lsn,
+			user: data.user,
+			file: data.file,
+			file_state: data.file_state,
+			group: [],
+			group_user: [],
+			group_file: [],
+		} satisfies LegacyZStoreDataV3
+	}
+
+	if (snapshot.version === 3) {
+		snapshot.version = 4
+		const data = snapshot.initialData as LegacyZStoreDataV3
+		snapshot.initialData = {
+			lsn: data.lsn,
+			user: data.user,
+			file: data.file,
+			file_state: data.file_state,
+			group: data.group,
+			group_user: data.group_user,
+			group_file: data.group_file,
+			user_fairies: [],
+			file_fairies: [],
+		} satisfies ZStoreData
+	}
+}
+
+const MUTATION_COMMIT_TIMEOUT = 10_000
+const LSN_COMMIT_TIMEOUT = 120_000
 
 export class UserDataSyncer {
 	state: BootState = {
@@ -114,66 +202,94 @@ export class UserDataSyncer {
 		}
 	}
 
-	interval: NodeJS.Timeout | null = null
-
 	constructor(
 		private ctx: DurableObjectState,
 		private env: Environment,
 		private db: Kysely<DB>,
 		private userId: string,
-		private broadcast: (message: ZServerSentMessage) => void,
+		private broadcast: (message: ZServerSentPacket) => void,
 		private logEvent: (event: TLUserDurableObjectEvent) => void,
 		private log: Logger
 	) {
 		this.sentry = createSentry(ctx, env)
-		this.reboot({ delay: false })
-	}
-
-	maybeStartInterval() {
-		if (!this.interval) {
-			this.interval = setInterval(() => this.onInterval(), 1000)
-		}
-	}
-
-	stopInterval() {
-		if (this.interval) {
-			clearInterval(this.interval)
-			this.interval = null
-		}
+		this.reboot({ delay: false, source: 'constructor' })
+		const persist = throttle(
+			async () => {
+				if (this.state.type !== 'connected') return
+				const initialData = this.store.getCommittedData()
+				if (initialData) {
+					const snapshot: StateSnapshot = {
+						version: stateVersion,
+						initialData,
+						optimisticUpdates: this.store.getOptimisticUpdates(),
+						sequenceId: this.state.sequenceId,
+						lastSequenceNumber: this.state.lastSequenceNumber,
+					}
+					this.log.debug('stashing snapshot')
+					this.lastStashEpoch = this.store.epoch
+					await this.env.USER_DO_SNAPSHOTS.put(
+						getUserDoSnapshotKey(this.env, this.userId),
+						JSON.stringify(snapshot)
+					)
+				}
+			},
+			1000,
+			{ trailing: true, leading: false }
+		)
+		react('persist user store', () => {
+			const _fullData = this.store.getFullData()
+			persist()
+		})
 	}
 
 	private queue = new ExecutionQueue()
 
 	numConsecutiveReboots = 0
 
-	async reboot({ delay = true, hard = false }: { delay?: boolean; hard?: boolean } = {}) {
+	async reboot({
+		delay = true,
+		hard = false,
+		source,
+	}: {
+		delay?: boolean
+		hard?: boolean
+		source: string
+	}) {
 		this.numConsecutiveReboots++
-		if (this.numConsecutiveReboots > 5) {
+		if (this.numConsecutiveReboots > 8) {
 			this.logEvent({ type: 'user_do_abort', id: this.userId })
 			getStatsDurableObjct(this.env).recordUserDoAbort()
 			this.ctx.abort()
 			return
 		}
-		this.log.debug('rebooting')
+		this.log.debug('rebooting', source, 'hard:', hard, 'delay:', delay)
 		this.logEvent({ type: 'reboot', id: this.userId })
 		await this.queue.push(async () => {
 			if (delay) {
-				await sleep(1000)
+				await sleep(Math.random() * 5000)
 			}
+			const controller = new AbortController()
+			const bootPromise = this.boot(hard, controller.signal)
+				.then(() => 'ok' as const)
+				.catch((e) => {
+					this.logEvent({ type: 'reboot_error', id: this.userId })
+					this.log.debug('reboot error', e.stack)
+					this.captureException(e, { source })
+					return 'error' as const
+				})
 			const res = await Promise.race([
-				this.boot(hard).then(() => 'ok'),
-				sleep(5000).then(() => 'timeout'),
-			]).catch((e) => {
-				this.logEvent({ type: 'reboot_error', id: this.userId })
-				this.log.debug('reboot error', e.stack)
-				this.captureException(e)
-				return 'error'
-			})
+				bootPromise,
+				sleep(30_000).then(() => {
+					controller.abort()
+					return 'timeout' as const
+				}),
+			])
+			await bootPromise
 			this.log.debug('rebooted', res)
 			if (res === 'ok') {
 				this.numConsecutiveReboots = 0
 			} else {
-				this.reboot({ hard: true })
+				this.reboot({ hard: this.numConsecutiveReboots > 4, source: source + '_retry' })
 			}
 		})
 	}
@@ -188,62 +304,79 @@ export class UserDataSyncer {
 		this.broadcast({ type: 'commit', mutationIds: mutationIds })
 	}
 
-	private async loadInitialDataFromR2() {
+	private async loadInitialDataFromR2(signal: AbortSignal) {
 		this.log.debug('loading snapshot from R2')
-		const res = await this.env.USER_DO_SNAPSHOTS.get(this.userId)
+		const res = await this.env.USER_DO_SNAPSHOTS.get(getUserDoSnapshotKey(this.env, this.userId))
+		if (signal.aborted) return null
 		if (!res) {
 			this.log.debug('no snapshot found')
 			return null
 		}
 		const data = (await res.json()) as StateSnapshot
+		if (signal.aborted) return null
+		migrateStateSnapshot(data)
 		if (data.version !== stateVersion) {
-			this.log.debug('snapshot version mismatch')
+			this.log.debug('snapshot version mismatch', data.version, stateVersion)
 			return null
 		}
 		this.log.debug('loaded snapshot from R2')
+		this.logEvent({ type: 'found_snapshot', id: this.userId })
 		return data
 	}
 
-	private async loadInitialDataFromPostgres() {
-		this.logEvent({ type: 'full_data_fetch', id: this.userId })
+	private async loadInitialDataFromPostgres(hard: boolean, signal: AbortSignal) {
+		this.logEvent({ type: hard ? 'full_data_fetch_hard' : 'full_data_fetch', id: this.userId })
 		this.log.debug('fetching fresh initial data from postgres')
 		// if the bootId changes during the boot process, we should stop silently
-		const userSql = getFetchUserDataSql(this.userId)
-		const initialData: ZStoreData = {
-			user: null as any,
-			files: [],
-			fileStates: [],
+		const initialData: ZStoreData & { mutationNumber?: number } = {
+			user: [],
+			file: [],
+			file_state: [],
+			group: [],
+			group_user: [],
+			group_file: [],
+			user_fairies: [],
+			file_fairies: [],
 			lsn: '0/0',
+			mutationNumber: 0,
 		}
 		// we connect to pg via a pooler, so in the case that the pool is exhausted
 		// we need to retry the connection. (also in the case that a neon branch is asleep apparently?)
 		await retryOnConnectionFailure(
 			async () => {
 				// sync initial data
-				initialData.user = null as any
-				initialData.files = []
-				initialData.fileStates = []
+				if (signal.aborted) return
+				initialData.user = []
+				initialData.file = []
+				initialData.file_state = []
+				initialData.group = []
+				initialData.group_user = []
+				initialData.group_file = []
 
 				await this.db.transaction().execute(async (tx) => {
-					const result = await userSql.execute(tx)
-					return result.rows.forEach((row: any) => {
-						assert(this.state.type === 'connecting', 'state should be connecting in boot')
-						switch (row.table) {
-							case 'user':
-								initialData.user = parseResultRow(userKeys, row)
-								break
-							case 'file':
-								initialData.files.push(parseResultRow(fileKeys, row))
-								break
-							case 'file_state':
-								initialData.fileStates.push(parseResultRow(fileStateKeys, row))
-								break
-							case 'meta':
+					const result = await tx.executeQuery(CompiledQuery.raw(fetchEverythingSql, [this.userId]))
+					assert(this.state.type === 'connecting', 'state should be connecting in boot')
+					if (signal.aborted) return
+					for (const _row of result.rows) {
+						const { table, row } = parseResultRow(_row)
+						switch (table) {
+							case 'lsn':
 								assert(typeof row.lsn === 'string', 'lsn should be a string')
 								initialData.lsn = row.lsn
 								break
+							case 'user_mutation_number':
+								assert(
+									typeof row.mutationNumber === 'number' || row.mutationNumber === null,
+									'mutationNumber should be a number or null, got' + JSON.stringify(row)
+								)
+								if (row.mutationNumber !== null) {
+									initialData.mutationNumber = row.mutationNumber
+								}
+								break
+							default:
+								initialData[table].push(row)
 						}
-					})
+					}
 				})
 			},
 			() => {
@@ -255,11 +388,13 @@ export class UserDataSyncer {
 			version: stateVersion,
 			initialData,
 			optimisticUpdates: [],
+			sequenceId: notASequenceId,
+			lastSequenceNumber: 0,
 		} satisfies StateSnapshot
 	}
 
-	private async boot(hard: boolean): Promise<void> {
-		this.log.debug('booting')
+	private async boot(hard: boolean, signal: AbortSignal): Promise<void> {
+		this.log.debug('boot hard:', hard)
 		// todo: clean up old resources if necessary?
 		const start = Date.now()
 		this.state = {
@@ -268,6 +403,7 @@ export class UserDataSyncer {
 			bootId: uniqueId(),
 			bufferedEvents: [],
 		}
+		let resumeData: { sequenceId: string; lastSequenceNumber: number } | null = null
 		/**
 		 * BOOTUP SEQUENCE
 		 * 1. Generate a unique boot id
@@ -280,8 +416,10 @@ export class UserDataSyncer {
 		 */
 		if (!this.store.getCommittedData() || hard) {
 			const res =
-				(!hard && (await this.loadInitialDataFromR2())) ||
-				(await this.loadInitialDataFromPostgres())
+				(!hard && (await this.loadInitialDataFromR2(signal))) ||
+				(await this.loadInitialDataFromPostgres(hard, signal))
+
+			if (signal.aborted) return
 
 			this.log.debug('got initial data')
 			this.store.initialize(res.initialData, res.optimisticUpdates)
@@ -289,37 +427,80 @@ export class UserDataSyncer {
 				type: 'initial_data',
 				initialData: res.initialData,
 			})
+			if (
+				'mutationNumber' in res.initialData &&
+				typeof res.initialData.mutationNumber === 'number'
+			) {
+				this.commitMutations(res.initialData.mutationNumber)
+			}
+			if (res.sequenceId !== notASequenceId) {
+				resumeData = { sequenceId: res.sequenceId, lastSequenceNumber: res.lastSequenceNumber }
+			}
 		}
 
-		const initialData = this.store.getCommittedData()!
+		if (
+			!resumeData ||
+			!(await getReplicator(this.env).resumeSequence({
+				userId: this.userId,
+				sequenceId: resumeData.sequenceId,
+				lastSequenceNumber: resumeData.lastSequenceNumber,
+			}))
+		) {
+			// TODO: investigate how this returns without group_user, or suck that 'group_user is not iterable'
+			const initialData = this.store.getCommittedData()!
+			const topicSubscriptions: TopicSubscriptionTree = {}
+			const groupFileIds = new Set()
+			for (const group_user of initialData.group_user) {
+				topicSubscriptions[`group:${group_user.groupId}`] = {}
+			}
+			for (const group_file of initialData.group_file) {
+				groupFileIds.add(group_file.fileId)
+				let subgraph = topicSubscriptions[`group:${group_file.groupId}`]
+				if (typeof subgraph !== 'object') {
+					subgraph = {}
+					topicSubscriptions[`group:${group_file.groupId}`] = subgraph
+				}
 
-		// do an unnecessary assign here to tell typescript that the state might have changed
-		const guestFileIds = initialData.files.filter((f) => f.ownerId !== this.userId).map((f) => f.id)
-		const res = await getReplicator(this.env).registerUser({
-			userId: this.userId,
-			lsn: initialData.lsn,
-			guestFileIds,
-			bootId: this.state.bootId,
-		})
+				subgraph[`file:${group_file.fileId}`] = 1
+			}
 
-		if (res.type === 'reboot') {
-			if (hard) throw new Error('reboot loop, waiting')
-			return this.boot(true)
+			for (const file_state of initialData.file_state) {
+				if (groupFileIds.has(file_state.fileId)) continue
+				topicSubscriptions[`file:${file_state.fileId}`] = 1
+			}
+
+			const res = await getReplicator(this.env).registerUser({
+				userId: this.userId,
+				lsn: initialData.lsn,
+				topicSubscriptions,
+				bootId: this.state.bootId,
+			})
+
+			if (signal.aborted) {
+				this.log.debug('aborting because of timeout')
+				return
+			}
+
+			if (res.type === 'reboot') {
+				this.logEvent({ type: 'not_enough_history_for_fast_reboot', id: this.userId })
+				if (hard) throw new Error('reboot loop, waiting')
+				return this.boot(true, signal)
+			}
+			resumeData = { sequenceId: res.sequenceId, lastSequenceNumber: res.sequenceNumber }
 		}
 
 		const bufferedEvents = this.state.bufferedEvents
 		this.state = {
 			type: 'connected',
 			bootId: this.state.bootId,
-			sequenceId: res.sequenceId,
-			lastSequenceNumber: res.sequenceNumber,
+			sequenceId: resumeData.sequenceId,
+			lastSequenceNumber: resumeData.lastSequenceNumber,
 		}
 
 		if (bufferedEvents.length > 0) {
 			bufferedEvents.forEach((event) => this.handleReplicationEvent(event))
 		}
 
-		// this will prevent more events from being added to the buffer
 		const end = Date.now()
 		this.logEvent({ type: 'reboot_duration', id: this.userId, duration: end - start })
 		this.log.debug('boot time', end - start, 'ms')
@@ -332,10 +513,17 @@ export class UserDataSyncer {
 	private handleRowUpdateEvent(event: ZRowUpdateEvent) {
 		try {
 			assert(this.state.type === 'connected', 'state should be connected in handleEvent')
-			if (event.table !== 'user' && event.table !== 'file' && event.table !== 'file_state') {
+			if (
+				event.table !== 'user' &&
+				event.table !== 'file' &&
+				event.table !== 'file_state' &&
+				event.table !== 'group' &&
+				event.table !== 'group_user' &&
+				event.table !== 'group_file'
+			) {
 				throw new Error(`Unhandled table: ${event.table}`)
 			}
-			this.store.updateCommittedData(event)
+			this.store.updateCommittedData(event as ZRowUpdate)
 			this.broadcast({
 				type: 'update',
 				update: {
@@ -348,9 +536,12 @@ export class UserDataSyncer {
 			})
 		} catch (e) {
 			this.captureException(e)
-			this.reboot()
+			this.reboot({ source: 'handleRowUpdateEvent' })
 		}
 	}
+
+	// start with a random offset to avoid thundering herd
+	lastLsnCommit = Date.now() + LSN_COMMIT_TIMEOUT + Math.random() * LSN_COMMIT_TIMEOUT
 
 	handleReplicationEvent(event: ZReplicationEvent) {
 		if (this.state.type === 'init') {
@@ -360,7 +551,7 @@ export class UserDataSyncer {
 
 		// ignore irrelevant events
 		if (!event.sequenceId.endsWith(this.state.bootId)) {
-			this.log.debug('ignoring irrelevant event', event)
+			this.log.debug('ignoring irrelevant event', event, this.state.bootId)
 			return
 		}
 
@@ -374,7 +565,7 @@ export class UserDataSyncer {
 		if (this.state.sequenceId !== event.sequenceId) {
 			// the replicator has restarted, so we need to reboot
 			this.log.debug('force reboot', this.state, event)
-			this.reboot()
+			this.reboot({ source: 'handleReplicationEvent(force reboot)' })
 			return
 		}
 
@@ -384,7 +575,7 @@ export class UserDataSyncer {
 				event.sequenceNumber,
 				this.state.lastSequenceNumber
 			)
-			this.reboot()
+			this.reboot({ source: 'handleReplicationEvent(sequence number mismatch)' })
 			return
 		}
 
@@ -401,83 +592,111 @@ export class UserDataSyncer {
 			return
 		}
 
+		// do a hard reboot if any topic subscriptions changed
+		const topicUpdates = getSubscriptionChanges(
+			event.changes
+				.filter((c): c is ZRowUpdateEvent => c.type === 'row_update')
+				.map((ev) => ({ row: ev.row, event: { command: ev.event, table: ev.table } }))
+		)
+
+		if (topicUpdates.removedSubscriptions && topicUpdates.removedSubscriptions.length > 0) {
+			this.reboot({
+				hard: true,
+				delay: false,
+				source: 'handleReplicationEvent(removed subscription)',
+			})
+			return
+		}
+
+		// By default, we reboot for new subscriptions
+		// However, if it's a subscription to a new file and that file is already in the store,
+		// we can skip the hard reboot.
+		for (const update of topicUpdates.newSubscriptions ?? []) {
+			if (update.fromTopic === `user:${this.userId}` && update.toTopic.startsWith('file:')) {
+				const fileId = update.toTopic.split(':')[1]
+				if (this.store.getCommittedData()?.file.find((f) => f.id === fileId)) {
+					continue
+				}
+			}
+			this.reboot({
+				hard: true,
+				delay: false,
+				source: 'handleReplicationEvent(new subscription)',
+			})
+			return
+		}
+
 		transact(() => {
+			let maxMutationNumber = -1
 			for (const ev of event.changes) {
 				if (ev.type === 'mutation_commit') {
-					this.commitMutations(ev.mutationNumber)
+					if (ev.mutationNumber > maxMutationNumber) {
+						maxMutationNumber = ev.mutationNumber
+					}
 					continue
 				}
 
 				assert(ev.type === 'row_update', `event type should be row_update got ${event.type}`)
 				this.handleRowUpdateEvent(ev)
 			}
+			if (maxMutationNumber >= 0) {
+				this.commitMutations(maxMutationNumber)
+			}
 
+			this.log.debug('committing lsn', event.lsn)
+			this.lastLsnCommit = Date.now()
 			this.store.commitLsn(event.lsn)
 		})
+	}
 
-		// make sure we have all the files we need
-		const data = this.store.getFullData()
-		for (const fileState of data?.fileStates ?? []) {
-			if (!data?.files.some((f) => f.id === fileState.fileId)) {
-				this.log.debug('missing file', fileState.fileId)
-				this.addGuestFile(fileState.fileId)
-			}
+	async incorporateUnsyncedChanges(changes: ChangeAccumulator) {
+		const apply = (update: ZRowUpdate) => {
+			this.store.updateCommittedData(update)
+			this.broadcast({ type: 'update', update })
 		}
-
-		for (const file of data?.files ?? []) {
-			// and make sure we don't have any files we don't need
-			// this happens when a shared file is made private
-			if (file.ownerId !== this.userId && !data?.fileStates.some((fs) => fs.fileId === file.id)) {
-				this.log.debug('extra file', file.id)
-				const update: ZRowUpdate = {
-					event: 'delete',
-					row: { id: file.id },
-					table: 'file',
-				}
-				this.store.updateCommittedData(update)
-				this.broadcast({ type: 'update', update: update })
-				continue
+		for (const [table, diff] of objectMapEntries(changes)) {
+			for (const newRow of diff?.added ?? []) {
+				apply({ event: 'insert', row: newRow, table })
+			}
+			for (const updatedRow of diff?.updated ?? []) {
+				apply({ event: 'update', row: updatedRow, table })
+			}
+			for (const removedRow of diff?.removed ?? []) {
+				apply({ event: 'delete', row: removedRow, table })
 			}
 		}
 	}
 
-	async addGuestFile(fileOrId: string | TlaFile) {
-		const file =
-			typeof fileOrId === 'string'
-				? await this.db.selectFrom('file').where('id', '=', fileOrId).selectAll().executeTakeFirst()
-				: fileOrId
-		if (!file) return
-		if (file.ownerId !== this.userId && !file.shared) return
+	async removeGuestFile(id: string) {
+		if (!this.store.getFullData()?.file.find((f) => f.id === id)) return
 		const update: ZRowUpdate = {
-			event: 'insert',
-			row: file,
+			event: 'delete',
+			row: { id },
 			table: 'file',
 		}
 		this.store.updateCommittedData(update)
 		this.broadcast({ type: 'update', update })
 	}
 
-	private async onInterval() {
+	async onInterval() {
 		// if any mutations have been not been committed for 5 seconds, let's reboot the cache
-		if (this.store.epoch != this.lastStashEpoch && this.state.type === 'connected') {
-			const initialData = this.store.getCommittedData()
-			if (initialData) {
-				const snapshot: StateSnapshot = {
-					version: stateVersion,
-					initialData,
-					optimisticUpdates: this.store.getOptimisticUpdates(),
-				}
-				this.log.debug('stashing snapshot')
-				this.lastStashEpoch = this.store.epoch
-				await this.env.USER_DO_SNAPSHOTS.put(this.userId, JSON.stringify(snapshot))
-			}
-		}
 		for (const mutation of this.mutations) {
-			if (Date.now() - mutation.timestamp > 5000) {
-				this.log.debug("Mutations haven't been committed for 5 seconds, rebooting", mutation)
-				this.reboot({ hard: true })
+			if (Date.now() - mutation.timestamp > MUTATION_COMMIT_TIMEOUT) {
+				this.log.debug("Mutations haven't been committed for 10 seconds, rebooting", mutation)
+				this.reboot({ hard: true, source: 'onInterval' })
 				break
 			}
+		}
+
+		if (this.lastLsnCommit < Date.now() - LSN_COMMIT_TIMEOUT) {
+			this.log.debug('requesting lsn update', this.userId)
+			sql`SELECT pg_logical_emit_message(true, 'requestLsnUpdate', ${this.userId});`
+				.execute(this.db)
+				.catch((e) => {
+					this.log.debug('failed to request lsn update', e)
+					this.captureException(e)
+				})
+			this.lastLsnCommit = Date.now()
 		}
 	}
 }

@@ -4,28 +4,29 @@ import { LegacyMigrations, MigrationSequence } from '@tldraw/store'
 import {
 	RecordProps,
 	TLHandle,
+	TLParentId,
 	TLPropsMigrations,
 	TLShape,
 	TLShapeCrop,
+	TLShapeId,
 	TLShapePartial,
 	TLUnknownShape,
 } from '@tldraw/tlschema'
+import { IndexKey } from '@tldraw/utils'
 import { ReactElement } from 'react'
 import { Box, SelectionHandle } from '../../primitives/Box'
 import { Vec } from '../../primitives/Vec'
 import { Geometry2d } from '../../primitives/geometry/Geometry2d'
 import type { Editor } from '../Editor'
-import { TLFontFace } from '../managers/FontManager'
+import { TLFontFace } from '../managers/FontManager/FontManager'
 import { BoundsSnapGeometry } from '../managers/SnapManager/BoundsSnaps'
 import { HandleSnapGeometry } from '../managers/SnapManager/HandleSnaps'
 import { SvgExportContext } from '../types/SvgExportContext'
+import { TLClickEventInfo } from '../types/event-types'
 import { TLResizeHandle } from '../types/selection-types'
 
 /** @public */
-export interface TLShapeUtilConstructor<
-	T extends TLUnknownShape,
-	U extends ShapeUtil<T> = ShapeUtil<T>,
-> {
+export interface TLShapeUtilConstructor<T extends TLShape, U extends ShapeUtil<T> = ShapeUtil<T>> {
 	new (editor: Editor): U
 	type: T['type']
 	props?: RecordProps<T>
@@ -38,11 +39,11 @@ export interface TLShapeUtilConstructor<
  *
  * @public
  */
-export interface TLShapeUtilCanBindOpts<Shape extends TLUnknownShape = TLUnknownShape> {
+export interface TLShapeUtilCanBindOpts<Shape extends TLShape = TLShape> {
 	/** The type of shape referenced by the `fromId` of the binding. */
-	fromShapeType: string
+	fromShapeType: TLShape['type']
 	/** The type of shape referenced by the `toId` of the binding. */
-	toShapeType: string
+	toShapeType: TLShape['type']
 	/** The type of binding. */
 	bindingType: string
 }
@@ -74,8 +75,21 @@ export interface TLShapeUtilCanvasSvgDef {
 	component: React.ComponentType
 }
 
+/**
+ * Return type for {@link ShapeUtil.getIndicatorPath}. Can be either a simple Path2D
+ * or an object with additional rendering info like clip paths for complex indicators.
+ * @public
+ */
+export type TLIndicatorPath =
+	| Path2D
+	| {
+			path: Path2D
+			clipPath?: Path2D
+			additionalPaths?: Path2D[]
+	  }
+
 /** @public */
-export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
+export abstract class ShapeUtil<Shape extends TLShape = TLShape> {
 	/** Configure this shape utils {@link ShapeUtil.options | `options`}. */
 	static configure<T extends TLShapeUtilConstructor<any, any>>(
 		this: T,
@@ -173,6 +187,37 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	abstract indicator(shape: Shape): any
 
 	/**
+	 * Whether to use the legacy React-based indicator rendering.
+	 *
+	 * Override this to return `false` if your shape implements {@link ShapeUtil.getIndicatorPath}
+	 * for canvas-based indicator rendering.
+	 *
+	 * @returns `true` to use SVG indicators (default), `false` to use canvas indicators.
+	 * @public
+	 */
+	useLegacyIndicator(): boolean {
+		return true
+	}
+
+	/**
+	 * Get a Path2D for rendering the shape's indicator on the canvas.
+	 *
+	 * When implemented, this is used instead of {@link ShapeUtil.indicator} for more
+	 * efficient canvas-based indicator rendering. Shapes that return `undefined` will
+	 * fall back to SVG-based rendering via {@link ShapeUtil.indicator}.
+	 *
+	 * For complex indicators that need clipping (e.g., arrows with labels), return an
+	 * object with `path`, `clipPath`, and `additionalPaths` properties.
+	 *
+	 * @param shape - The shape.
+	 * @returns A Path2D to stroke, or an object with clipping info, or undefined to use SVG fallback.
+	 * @public
+	 */
+	getIndicatorPath(shape: Shape): TLIndicatorPath | undefined {
+		return undefined
+	}
+
+	/**
 	 * Get the font faces that should be rendered in the document in order for this shape to render
 	 * correctly.
 	 *
@@ -189,7 +234,17 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 * @param shape - The shape.
 	 * @public
 	 */
-	canSnap(_shape: Shape): boolean {
+	canSnap(shape: Shape): boolean {
+		return true
+	}
+
+	/**
+	 * Whether the shape can be tabbed to.
+	 *
+	 * @param shape - The shape.
+	 * @public
+	 */
+	canTabTo(shape: Shape): boolean {
 		return true
 	}
 
@@ -198,7 +253,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	canScroll(_shape: Shape): boolean {
+	canScroll(shape: Shape): boolean {
 		return false
 	}
 
@@ -216,7 +271,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	canEdit(_shape: Shape): boolean {
+	canEdit(shape: Shape, info: TLEditStartInfo): boolean {
 		return false
 	}
 
@@ -225,7 +280,16 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	canResize(_shape: Shape): boolean {
+	canResize(shape: Shape): boolean {
+		return true
+	}
+
+	/**
+	 * When the shape is resized, whether the shape's children should also be resized.
+	 *
+	 * @public
+	 */
+	canResizeChildren(shape: Shape): boolean {
 		return true
 	}
 
@@ -234,7 +298,16 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	canEditInReadOnly(_shape: Shape): boolean {
+	canEditInReadonly(shape: Shape): boolean {
+		return false
+	}
+
+	/**
+	 * Whether the shape can be edited while locked or while an ancestor is locked.
+	 *
+	 * @public
+	 */
+	canEditWhileLocked(shape: Shape): boolean {
 		return false
 	}
 
@@ -243,7 +316,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	canCrop(_shape: Shape): boolean {
+	canCrop(shape: Shape): boolean {
 		return false
 	}
 
@@ -256,7 +329,18 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	canBeLaidOut(_shape: Shape, _info: TLShapeUtilCanBeLaidOutOpts): boolean {
+	canBeLaidOut(shape: Shape, info: TLShapeUtilCanBeLaidOutOpts): boolean {
+		return true
+	}
+
+	/**
+	 * Whether this shape can be culled. By default, shapes are culled for
+	 * performance reasons when they are outside of the viewport. Culled shapes are still rendered
+	 * to the DOM, but have their `display` property set to `none`.
+	 *
+	 * @param shape - The shape.
+	 */
+	canCull(shape: Shape): boolean {
 		return true
 	}
 
@@ -269,16 +353,67 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @internal
 	 */
-	providesBackgroundForChildren(_shape: Shape): boolean {
+	providesBackgroundForChildren(shape: Shape): boolean {
 		return false
 	}
+
+	/**
+	 * Get the clip path to apply to this shape's children.
+	 *
+	 * The returned points should define the **inner** clip boundary - the area where
+	 * children will be visible. If your shape has a stroke, you should inset the clip
+	 * path by half the stroke width so children are clipped to the inner edge of the
+	 * stroke rather than its center line.
+	 *
+	 * @example
+	 * ```ts
+	 * override getClipPath(shape: MyShape): Vec[] | undefined {
+	 *   const strokeWidth = 2
+	 *   const inset = strokeWidth / 2
+	 *   // Return points inset by half the stroke width
+	 *   return [
+	 *     new Vec(inset, inset),
+	 *     new Vec(shape.props.w - inset, inset),
+	 *     new Vec(shape.props.w - inset, shape.props.h - inset),
+	 *     new Vec(inset, shape.props.h - inset),
+	 *   ]
+	 * }
+	 * ```
+	 *
+	 * @param shape - The shape to get the clip path for
+	 * @returns Array of points defining the clipping polygon in local coordinates, or undefined if no clipping
+	 * @public
+	 */
+	getClipPath?(shape: Shape): Vec[] | undefined
+
+	/**
+	 * Whether a specific child shape should be clipped by this shape.
+	 * Only called if getClipPath returns a valid polygon.
+	 *
+	 * If not defined, the default behavior is to clip all children.
+	 *
+	 * @param child - The child shape to check
+	 * @returns boolean indicating if this child should be clipped
+	 * @public
+	 */
+	shouldClipChild?(child: TLShape): boolean
+
+	/**
+	 * Whether a specific shape should hide in the minimap.
+	 *
+	 * If not defined, the default behavior is to show all shapes in the minimap.
+	 *
+	 * @returns boolean indicating if this shape should hide in the minimap
+	 * @public
+	 */
+	hideInMinimap?(shape: Shape): boolean
 
 	/**
 	 * Whether the shape should hide its resize handles when selected.
 	 *
 	 * @public
 	 */
-	hideResizeHandles(_shape: Shape): boolean {
+	hideResizeHandles(shape: Shape): boolean {
 		return false
 	}
 
@@ -287,7 +422,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	hideRotateHandle(_shape: Shape): boolean {
+	hideRotateHandle(shape: Shape): boolean {
 		return false
 	}
 
@@ -296,7 +431,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	hideSelectionBoundsBg(_shape: Shape): boolean {
+	hideSelectionBoundsBg(shape: Shape): boolean {
 		return false
 	}
 
@@ -305,7 +440,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	hideSelectionBoundsFg(_shape: Shape): boolean {
+	hideSelectionBoundsFg(shape: Shape): boolean {
 		return false
 	}
 
@@ -314,7 +449,21 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 *
 	 * @public
 	 */
-	isAspectRatioLocked(_shape: Shape): boolean {
+	isAspectRatioLocked(shape: Shape): boolean {
+		return false
+	}
+
+	/**
+	 * By default, the bounds of an image export are the bounds of all the shapes it contains, plus
+	 * some padding. If an export includes a shape where `isExportBoundsContainer` is true, then the
+	 * padding is skipped _if the bounds of that shape contains all the other shapes_. This is
+	 * useful in cases like annotating on top of an image, where you usually want to avoid extra
+	 * padding around the image if you don't need it.
+	 *
+	 * @param shape - The shape to check
+	 * @returns True if this shape should be treated as an export bounds container
+	 */
+	isExportBoundsContainer(shape: Shape): boolean {
 		return false
 	}
 
@@ -363,18 +512,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 * @param type - The shape type.
 	 * @public
 	 */
-	canReceiveNewChildrenOfType(_shape: Shape, _type: TLShape['type']) {
-		return false
-	}
-
-	/**
-	 * Get whether the shape can receive children of a given type.
-	 *
-	 * @param shape - The shape type.
-	 * @param shapes - The shapes that are being dropped.
-	 * @public
-	 */
-	canDropShapes(_shape: Shape, _shapes: TLShape[]) {
+	canReceiveNewChildrenOfType(shape: Shape, _type: TLShape['type']) {
 		return false
 	}
 
@@ -422,7 +560,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 * Get the geometry to use when snapping to this this shape in translate/resize operations. See
 	 * {@link BoundsSnapGeometry} for details.
 	 */
-	getBoundsSnapGeometry(_shape: Shape): BoundsSnapGeometry {
+	getBoundsSnapGeometry(shape: Shape): BoundsSnapGeometry {
 		return {}
 	}
 
@@ -430,11 +568,15 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 * Get the geometry to use when snapping handles to this shape. See {@link HandleSnapGeometry}
 	 * for details.
 	 */
-	getHandleSnapGeometry(_shape: Shape): HandleSnapGeometry {
+	getHandleSnapGeometry(shape: Shape): HandleSnapGeometry {
 		return {}
 	}
 
-	getText(_shape: Shape): string | undefined {
+	getText(shape: Shape): string | undefined {
+		return undefined
+	}
+
+	getAriaDescriptor(shape: Shape): string | undefined {
 		return undefined
 	}
 
@@ -493,7 +635,16 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	): Omit<TLShapePartial<Shape>, 'id' | 'type'> | undefined | void
 
 	/**
-	 * A callback called when some other shapes are dragged over this one.
+	 * A callback called when some other shapes are dragged into this one. This fires when the shapes are dragged over the shape for the first time.
+	 *
+	 * @param shape - The shape.
+	 * @param shapes - The shapes that are being dragged in.
+	 * @public
+	 */
+	onDragShapesIn?(shape: Shape, shapes: TLShape[], info: TLDragShapesInInfo): void
+
+	/**
+	 * A callback called when some other shapes are dragged over this one. This fires when the shapes are dragged over the shape for the first time (after the onDragShapesIn callback), and again on every update while the shapes are being dragged.
 	 *
 	 * @example
 	 *
@@ -507,7 +658,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 * @param shapes - The shapes that are being dragged over this one.
 	 * @public
 	 */
-	onDragShapesOver?(shape: Shape, shapes: TLShape[]): void
+	onDragShapesOver?(shape: Shape, shapes: TLShape[], info: TLDragShapesOverInfo): void
 
 	/**
 	 * A callback called when some other shapes are dragged out of this one.
@@ -516,7 +667,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 * @param shapes - The shapes that are being dragged out.
 	 * @public
 	 */
-	onDragShapesOut?(shape: Shape, shapes: TLShape[]): void
+	onDragShapesOut?(shape: Shape, shapes: TLShape[], info: TLDragShapesOutInfo): void
 
 	/**
 	 * A callback called when some other shapes are dropped over this one.
@@ -525,7 +676,7 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 * @param shapes - The shapes that are being dropped over this one.
 	 * @public
 	 */
-	onDropShapesOver?(shape: Shape, shapes: TLShape[]): void
+	onDropShapesOver?(shape: Shape, shapes: TLShape[], info: TLDropShapesOverInfo): void
 
 	/**
 	 * A callback called when a shape starts being resized.
@@ -560,6 +711,15 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	onResizeEnd?(initial: Shape, current: Shape): TLShapePartial<Shape> | void
 
 	/**
+	 * A callback called when a shape resize is cancelled.
+	 *
+	 * @param initial - The shape at the start of the resize.
+	 * @param current - The current shape.
+	 * @public
+	 */
+	onResizeCancel?(initial: Shape, current: Shape): void
+
+	/**
 	 * A callback called when a shape starts being translated.
 	 *
 	 * @param shape - The shape.
@@ -589,6 +749,25 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	onTranslateEnd?(initial: Shape, current: Shape): TLShapePartial<Shape> | void
 
 	/**
+	 * A callback called when a shape translation is cancelled.
+	 *
+	 * @param initial - The shape at the start of the translation.
+	 * @param current - The current shape.
+	 * @public
+	 */
+	onTranslateCancel?(initial: Shape, current: Shape): void
+
+	/**
+	 * A callback called when a shape's handle starts being dragged.
+	 *
+	 * @param shape - The shape.
+	 * @param info - An object containing the handle and whether the handle is 'precise' or not.
+	 * @returns A change to apply to the shape, or void.
+	 * @public
+	 */
+	onHandleDragStart?(shape: Shape, info: TLHandleDragInfo<Shape>): TLShapePartial<Shape> | void
+
+	/**
 	 * A callback called when a shape's handle changes.
 	 *
 	 * @param shape - The current shape.
@@ -597,6 +776,25 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 * @public
 	 */
 	onHandleDrag?(shape: Shape, info: TLHandleDragInfo<Shape>): TLShapePartial<Shape> | void
+
+	/**
+	 * A callback called when a shape's handle finishes being dragged.
+	 *
+	 * @param current - The current shape.
+	 * @param info - An object containing the handle and whether the handle is 'precise' or not.
+	 * @returns A change to apply to the shape, or void.
+	 * @public
+	 */
+	onHandleDragEnd?(current: Shape, info: TLHandleDragInfo<Shape>): TLShapePartial<Shape> | void
+
+	/**
+	 * A callback called when a shape's handle drag is cancelled.
+	 *
+	 * @param current - The current shape.
+	 * @param info - An object containing the handle and whether the handle is 'precise' or not.
+	 * @public
+	 */
+	onHandleDragCancel?(current: Shape, info: TLHandleDragInfo<Shape>): void
 
 	/**
 	 * A callback called when a shape starts being rotated.
@@ -628,6 +826,15 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	onRotateEnd?(initial: Shape, current: Shape): TLShapePartial<Shape> | void
 
 	/**
+	 * A callback called when a shape rotation is cancelled.
+	 *
+	 * @param initial - The shape at the start of the rotation.
+	 * @param current - The current shape.
+	 * @public
+	 */
+	onRotateCancel?(initial: Shape, current: Shape): void
+
+	/**
 	 * Not currently used.
 	 *
 	 * @internal
@@ -657,10 +864,21 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	 * A callback called when a shape's edge is double clicked.
 	 *
 	 * @param shape - The shape.
+	 * @param info - Info about the edge.
 	 * @returns A change to apply to the shape, or void.
 	 * @public
 	 */
-	onDoubleClickEdge?(shape: Shape): TLShapePartial<Shape> | void
+	onDoubleClickEdge?(shape: Shape, info: TLClickEventInfo): TLShapePartial<Shape> | void
+
+	/**
+	 * A callback called when a shape's corner is double clicked.
+	 *
+	 * @param shape - The shape.
+	 * @param info - Info about the corner.
+	 * @returns A change to apply to the shape, or void.
+	 * @public
+	 */
+	onDoubleClickCorner?(shape: Shape, info: TLClickEventInfo): TLShapePartial<Shape> | void
 
 	/**
 	 * A callback called when a shape is double clicked.
@@ -681,7 +899,15 @@ export abstract class ShapeUtil<Shape extends TLUnknownShape = TLUnknownShape> {
 	onClick?(shape: Shape): TLShapePartial<Shape> | void
 
 	/**
-	 * A callback called when a shape finishes being editing.
+	 * A callback called when a shape starts being edited.
+	 *
+	 * @param shape - The shape.
+	 * @public
+	 */
+	onEditStart?(shape: Shape): void
+
+	/**
+	 * A callback called when a shape finishes being edited.
 	 *
 	 * @param shape - The shape.
 	 * @public
@@ -702,6 +928,37 @@ export interface TLCropInfo<T extends TLShape> {
 	crop: TLShapeCrop
 	uncroppedSize: { w: number; h: number }
 	initialShape: T
+	aspectRatioLocked?: boolean
+}
+
+/** @public */
+export interface TLDragShapesInInfo {
+	initialDraggingOverShapeId: TLShapeId | null
+	prevDraggingOverShapeId: TLShapeId | null
+	initialParentIds: Map<TLShapeId, TLParentId>
+	initialIndices: Map<TLShapeId, IndexKey>
+}
+
+/** @public */
+export interface TLDragShapesOverInfo {
+	initialDraggingOverShapeId: TLShapeId | null
+	initialParentIds: Map<TLShapeId, TLParentId>
+	initialIndices: Map<TLShapeId, IndexKey>
+}
+
+/** @public */
+export interface TLDragShapesOutInfo {
+	nextDraggingOverShapeId: TLShapeId | null
+	initialDraggingOverShapeId: TLShapeId | null
+	initialParentIds: Map<TLShapeId, TLParentId>
+	initialIndices: Map<TLShapeId, IndexKey>
+}
+
+/** @public */
+export interface TLDropShapesOverInfo {
+	initialDraggingOverShapeId: TLShapeId | null
+	initialParentIds: Map<TLShapeId, TLParentId>
+	initialIndices: Map<TLShapeId, IndexKey>
 }
 
 /**
@@ -744,5 +1001,20 @@ export interface TLResizeInfo<T extends TLShape> {
 export interface TLHandleDragInfo<T extends TLShape> {
 	handle: TLHandle
 	isPrecise: boolean
+	isCreatingShape: boolean
 	initial?: T | undefined
+}
+
+/* --------------------------------- Editing -------------------------------- */
+
+/** @public */
+export interface TLEditStartInfo {
+	type:
+		| 'press_enter'
+		| 'click'
+		| 'double-click'
+		| 'double-click-edge'
+		| 'double-click-corner'
+		| 'click-header'
+		| 'unknown'
 }

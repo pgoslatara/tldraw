@@ -24,10 +24,16 @@ describe('When zooming to bounds', () => {
 			h: 1000,
 		})
 
+		const padding = editor.options.zoomToFitPadding
+
 		editor.zoomToBounds(new Box(200, 300, 300, 300))
-		expect(editor.getCamera().z).toCloselyMatchObject((1000 - 128) / 300)
-		expect(editor.getViewportPageBounds().width).toCloselyMatchObject(1000 / ((1000 - 128) / 300))
-		expect(editor.getViewportPageBounds().height).toCloselyMatchObject(1000 / ((1000 - 128) / 300))
+		expect(editor.getCamera().z).toCloselyMatchObject((1000 - padding) / 300)
+		expect(editor.getViewportPageBounds().width).toCloselyMatchObject(
+			1000 / ((1000 - padding) / 300)
+		)
+		expect(editor.getViewportPageBounds().height).toCloselyMatchObject(
+			1000 / ((1000 - padding) / 300)
+		)
 	})
 })
 
@@ -38,7 +44,7 @@ it('does not zoom past max', () => {
 
 it('does not zoom past min', () => {
 	editor.zoomToBounds(new Box(0, 0, 1000000, 100000))
-	expect(editor.getZoomLevel()).toBe(0.1)
+	expect(editor.getZoomLevel()).toBe(0.05)
 })
 
 it('does not zoom to bounds when camera is frozen', () => {
@@ -54,4 +60,14 @@ it('is ignored by undo/redo', () => {
 	editor.zoomToBounds(new Box(200, 300, 300, 300))
 	editor.undo()
 	expect(editor.getViewportPageCenter().toJson()).toCloselyMatchObject({ x: 350, y: 450 })
+})
+
+it('respects custom zoomToFitPadding option', () => {
+	const customPadding = 64
+	editor = new TestEditor({ options: { zoomToFitPadding: customPadding } })
+	editor.setScreenBounds({ x: 0, y: 0, w: 1000, h: 1000 })
+	editor.setCamera({ x: 0, y: 0, z: 1 })
+
+	editor.zoomToBounds(new Box(200, 300, 300, 300))
+	expect(editor.getCamera().z).toCloselyMatchObject((1000 - customPadding) / 300)
 })

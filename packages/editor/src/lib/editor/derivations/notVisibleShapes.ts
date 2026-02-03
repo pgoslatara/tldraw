@@ -1,49 +1,42 @@
 import { computed, isUninitialized } from '@tldraw/state'
 import { TLShapeId } from '@tldraw/tlschema'
-import { Box } from '../../primitives/Box'
 import { Editor } from '../Editor'
 
-function isShapeNotVisible(editor: Editor, id: TLShapeId, viewportPageBounds: Box): boolean {
-	const maskedPageBounds = editor.getShapeMaskedPageBounds(id)
-	// if the shape is fully outside of its parent's clipping bounds...
-	if (maskedPageBounds === undefined) return true
-
-	// if the shape is fully outside of the viewport page bounds...
-	return !viewportPageBounds.includes(maskedPageBounds)
-}
-
 /**
- * Incremental derivation of not visible shapes.
- * Non visible shapes are shapes outside of the viewport page bounds and shapes outside of parent's clipping bounds.
+ * Non visible shapes are shapes outside of the viewport page bounds.
  *
  * @param editor - Instance of the tldraw Editor.
  * @returns Incremental derivation of non visible shapes.
  */
-export const notVisibleShapes = (editor: Editor) => {
-	function fromScratch(editor: Editor): Set<TLShapeId> {
-		const shapes = editor.getCurrentPageShapeIds()
+export function notVisibleShapes(editor: Editor) {
+	return computed<Set<TLShapeId>>('notVisibleShapes', function (prevValue) {
+		const allShapeIds = editor.getCurrentPageShapeIds()
 		const viewportPageBounds = editor.getViewportPageBounds()
-		const notVisibleShapes = new Set<TLShapeId>()
-		shapes.forEach((id) => {
-			if (isShapeNotVisible(editor, id, viewportPageBounds)) {
-				notVisibleShapes.add(id)
+		const visibleIds = editor.getShapeIdsInsideBounds(viewportPageBounds)
+
+		const nextValue = new Set<TLShapeId>()
+
+		// Non-visible shapes are all shapes minus visible shapes
+		for (const id of allShapeIds) {
+			if (!visibleIds.has(id)) {
+				const shape = editor.getShape(id)
+				if (!shape) continue
+
+				const canCull = editor.getShapeUtil(shape.type).canCull(shape)
+				if (!canCull) continue
+
+				nextValue.add(id)
 			}
-		})
-		return notVisibleShapes
-	}
-	return computed<Set<TLShapeId>>('getCulledShapes', (prevValue) => {
-		if (isUninitialized(prevValue)) {
-			return fromScratch(editor)
 		}
 
-		const nextValue = fromScratch(editor)
+		if (isUninitialized(prevValue) || prevValue.size !== nextValue.size) {
+			return nextValue
+		}
 
-		if (prevValue.size !== nextValue.size) return nextValue
 		for (const prev of prevValue) {
-			if (!nextValue.has(prev)) {
-				return nextValue
-			}
+			if (!nextValue.has(prev)) return nextValue
 		}
+
 		return prevValue
 	})
 }
