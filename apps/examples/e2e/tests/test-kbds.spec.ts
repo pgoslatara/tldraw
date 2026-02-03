@@ -408,6 +408,9 @@ test.describe('Actions on shapes', () => {
 
 		/* ---------------------- Misc ---------------------- */
 
+		// Re-select shapes after page navigation
+		await page.keyboard.press('Control+a')
+
 		// toggle lock
 		await page.keyboard.press('Shift+l')
 		expect(await page.evaluate(() => __tldraw_ui_event)).toMatchObject({
