@@ -170,8 +170,6 @@ function migrateStateSnapshot(snapshot: any) {
 			group: data.group,
 			group_user: data.group_user,
 			group_file: data.group_file,
-			user_fairies: [],
-			file_fairies: [],
 		} satisfies ZStoreData
 	}
 }
@@ -335,8 +333,6 @@ export class UserDataSyncer {
 			group: [],
 			group_user: [],
 			group_file: [],
-			user_fairies: [],
-			file_fairies: [],
 			lsn: '0/0',
 			mutationNumber: 0,
 		}
