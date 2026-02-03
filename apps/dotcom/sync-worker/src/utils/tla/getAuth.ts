@@ -21,7 +21,7 @@ export function getClerkClient(env: Environment) {
 
 function getAuthorizedParties(env: Environment): string[] {
 	const parties = [
-		'http://localhost:5420',
+		'http://localhost:3000',
 		'https://tldraw.com',
 		'https://www.tldraw.com',
 		'https://staging.tldraw.com',
