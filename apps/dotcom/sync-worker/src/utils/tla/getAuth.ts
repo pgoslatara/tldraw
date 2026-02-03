@@ -39,14 +39,7 @@ export async function getAuth(request: IRequest, env: Environment): Promise<Sign
 	const clerk = getClerkClient(env)
 	const authorizedParties = getAuthorizedParties(env)
 
-	// Debug: log what headers we receive
-	const authHeader = request.headers.get('Authorization')
-	console.log('[getAuth] Authorization header present:', !!authHeader)
-	console.log('[getAuth] Authorization header value:', authHeader?.substring(0, 50) + '...')
-	console.log('[getAuth] Authorized parties:', authorizedParties)
-
 	const state = await clerk.authenticateRequest(request, { authorizedParties })
-	console.log('[getAuth] First authenticateRequest result:', state.isSignedIn)
 	if (state.isSignedIn) return state.toAuth() as SignedInAuth
 
 	// we can't send headers with websockets, so for those connections we need to pass the token in
