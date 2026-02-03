@@ -6,7 +6,7 @@ import {
 	Node,
 } from '@tiptap/core'
 import { Plugin, PluginKey } from '@tiptap/pm/state'
-import Suggestion, { SuggestionOptions } from '@tiptap/suggestion'
+import { Suggestion, SuggestionOptions } from '@tiptap/suggestion'
 
 // See `addAttributes` below
 interface EmojiNodeAttrs {
