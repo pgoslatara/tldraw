@@ -43,7 +43,6 @@ import { useFairyAccess, useShouldShowFairies } from '../../hooks/useFairyAccess
 import { ReadyWrapper, useSetIsReady } from '../../hooks/useIsReady'
 import { useNewRoomCreationTracking } from '../../hooks/useNewRoomCreationTracking'
 import { useTldrawUser } from '../../hooks/useUser'
-import { useAreFairiesEnabled } from '../../utils/local-session-state'
 import { maybeSlurp } from '../../utils/slurping'
 import { A11yAudit } from './TlaDebug'
 import { TlaEditorWrapper } from './TlaEditorWrapper'
@@ -61,7 +60,6 @@ import { useFileEditorOverrides } from './useFileEditorOverrides'
 
 // eslint-disable-next-line local/no-fairy-imports -- ok for types
 import { type FairyApp } from '../../../fairy/fairy-app/FairyApp'
-import { useFeatureFlags } from '../../hooks/useFeatureFlags'
 
 // Lazy load fairy components
 
@@ -79,9 +77,6 @@ const Fairies = lazy(() =>
 const RemoteFairies = lazy(() =>
 	import('../../../fairy/fairy-canvas-ui/RemoteFairies').then((m) => ({ default: m.RemoteFairies }))
 )
-const FairyHUDTeaser = lazy(() =>
-	import('../../../fairy/fairy-ui/FairyHUDTeaser').then((m) => ({ default: m.FairyHUDTeaser }))
-)
 const FairyAppContextProvider = lazy(() =>
 	import('../../../fairy/fairy-app/FairyAppProvider').then((m) => ({
 		default: m.FairyAppContextProvider,
@@ -96,12 +91,6 @@ export const components: TLComponents = {
 	SharePanel: TlaEditorSharePanel,
 	Dialogs: null,
 	Toasts: null,
-
-	InFrontOfTheCanvas: () => (
-		<Suspense fallback={<div />}>
-			<FairyHUDTeaser />
-		</Suspense>
-	),
 }
 
 interface TlaEditorProps {
@@ -305,9 +294,7 @@ function TlaEditorInner({ fileSlug, deepLinks }: TlaEditorProps) {
 	const extraDragIconOverrides = useExtraDragIconOverrides()
 
 	const hasFairyAccess = useFairyAccess()
-	const areFairiesEnabled = useAreFairiesEnabled()
 	const shouldShowFairies = useShouldShowFairies()
-	const { flags, isLoaded } = useFeatureFlags()
 
 	const RemoteFairiesDelayed = ({ enableForMe }: { enableForMe: boolean }) => {
 		const editor = useEditor()
@@ -325,18 +312,12 @@ function TlaEditorInner({ fileSlug, deepLinks }: TlaEditorProps) {
 
 	const instanceComponents = useMemo((): TLComponents => {
 		// User can control their own fairies if they have fairy access and it's enabled
-		const canControlFairies = app && hasFairyAccess && areFairiesEnabled
+		const canControlFairies = app && hasFairyAccess
 
 		// Show fairy UI (HUD, remote fairies) if feature flag is enabled and local toggle is on
 		// This allows guests to see fairies on shared files without requiring login
-		const shouldShowFairyUI = shouldShowFairies && areFairiesEnabled
+		const shouldShowFairyUI = shouldShowFairies
 
-		const shouldShowTeaser =
-			isLoaded &&
-			flags.fairies.enabled &&
-			flags.fairies_purchase.enabled &&
-			!hasFairyAccess &&
-			areFairiesEnabled
 		return {
 			...components,
 			Overlays: () => {
@@ -361,31 +342,16 @@ function TlaEditorInner({ fileSlug, deepLinks }: TlaEditorProps) {
 						{shouldShowFairyUI && hoistedFairyApp ? (
 							<Suspense fallback={<div />}>
 								<FairyAppContextProvider fairyApp={hoistedFairyApp}>
-									{canControlFairies ? <FairyHUD /> : <FairyHUDTeaser />}
+									{canControlFairies ? <FairyHUD /> : null}
 								</FairyAppContextProvider>
 							</Suspense>
-						) : (
-							shouldShowTeaser && (
-								<Suspense fallback={<div />}>
-									<FairyHUDTeaser />
-								</Suspense>
-							)
-						)}
+						) : null}
 					</>
 				)
 			},
 			DebugMenu: () => <CustomDebugMenu />,
 		}
-	}, [
-		isLoaded,
-		flags.fairies.enabled,
-		flags.fairies_purchase.enabled,
-		app,
-		hasFairyAccess,
-		areFairiesEnabled,
-		shouldShowFairies,
-		hoistedFairyApp,
-	])
+	}, [app, hasFairyAccess, shouldShowFairies, hoistedFairyApp])
 
 	return (
 		<TlaEditorWrapper>
@@ -408,7 +374,7 @@ function TlaEditorInner({ fileSlug, deepLinks }: TlaEditorProps) {
 				<SneakyToolSwitcher />
 				{app && <SneakyTldrawFileDropHandler />}
 				<SneakyLargeFileHander />
-				{app && hasFairyAccess && areFairiesEnabled && (
+				{app && hasFairyAccess && (
 					<Suspense fallback={null}>
 						<FairyAppProvider
 							fileId={fileId}

@@ -257,12 +257,6 @@
       "value": "Si us plau, prova d'actualitzar la pàgina."
     }
   ],
-  "34140869c6": [
-    {
-      "type": 0,
-      "value": "Un grup de fades arriba al sorteig durant el mes de desembre. Si us plau, torneu a consultar l'1 de desembre."
-    }
-  ],
   "344a7f427f": [
     {
       "type": 0,
@@ -651,12 +645,6 @@
     {
       "type": 0,
       "value": "Nom de la fada"
-    }
-  ],
-  "695c3e899d": [
-    {
-      "type": 0,
-      "value": "Depurar fades"
     }
   ],
   "6a26f54883": [
@@ -1519,12 +1507,6 @@
     {
       "type": 0,
       "value": "Entra aquí per veure el contingut"
-    }
-  ],
-  "d9bfb9789a": [
-    {
-      "type": 0,
-      "value": "Habilita les fades"
     }
   ],
   "d9e35d0f55": [

@@ -1,9 +1,4 @@
 import { registerTldrawLibraryVersion } from '@tldraw/utils'
-import 'core-js/stable/array/at.js'
-import 'core-js/stable/array/flat-map.js'
-import 'core-js/stable/array/flat.js'
-import 'core-js/stable/string/at.js'
-import 'core-js/stable/string/replace-all.js'
 
 // eslint-disable-next-line local/no-export-star
 export * from '@tldraw/state'
@@ -120,12 +115,7 @@ export {
 	userTypeValidator,
 	type TLUserPreferences,
 } from './lib/config/TLUserPreferences'
-export {
-	DEFAULT_ANIMATION_OPTIONS,
-	DEFAULT_CAMERA_OPTIONS,
-	DEFAULT_SNAP_THRESHOLD,
-	SIDES,
-} from './lib/constants'
+export { DEFAULT_ANIMATION_OPTIONS, DEFAULT_CAMERA_OPTIONS, SIDES } from './lib/constants'
 export {
 	BindingUtil,
 	type BindingOnChangeOptions,
@@ -155,6 +145,7 @@ export { InputsManager } from './lib/editor/managers/InputsManager/InputsManager
 export {
 	ScribbleManager,
 	type ScribbleItem,
+	type ScribbleSessionOptions,
 } from './lib/editor/managers/ScribbleManager/ScribbleManager'
 export {
 	BoundsSnaps,
@@ -169,6 +160,7 @@ export {
 	type SnapData,
 	type SnapIndicator,
 } from './lib/editor/managers/SnapManager/SnapManager'
+export { SpatialIndexManager } from './lib/editor/managers/SpatialIndexManager/SpatialIndexManager'
 export {
 	TextManager,
 	type TLMeasureTextOpts,
@@ -188,6 +180,7 @@ export {
 	type TLEditStartInfo,
 	type TLGeometryOpts,
 	type TLHandleDragInfo,
+	type TLIndicatorPath,
 	type TLResizeInfo,
 	type TLResizeMode,
 	type TLShapeUtilCanBeLaidOutOpts,
