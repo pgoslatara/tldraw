@@ -13,7 +13,6 @@ export const replicatedTables = stringEnum(
 	'group_file'
 )
 export type ReplicatedTable = keyof typeof replicatedTables
-export type ReplicatedRow = TlaRow
 
 export interface ReplicationEvent {
 	command: 'insert' | 'update' | 'delete'

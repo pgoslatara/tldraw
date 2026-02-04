@@ -6,6 +6,7 @@ import {
 	TlaGroup,
 	TlaGroupFile,
 	TlaGroupUser,
+	TlaRow,
 	TlaUser,
 	ZEvent,
 	ZRowUpdate,
@@ -28,7 +29,7 @@ import { Logger } from './Logger'
 import { fetchEverythingSql } from './fetchEverythingSql.snap'
 import { parseResultRow } from './parseResultRow'
 import { TopicSubscriptionTree, getSubscriptionChanges } from './replicator/Subscription'
-import { ReplicatedRow, ReplicatedTable } from './replicator/replicatorTypes'
+import { ReplicatedTable } from './replicator/replicatorTypes'
 import { Environment, TLUserDurableObjectEvent, getUserDoSnapshotKey } from './types'
 import { getReplicator, getStatsDurableObjct } from './utils/durableObjects'
 import { retryOnConnectionFailure } from './utils/retryOnConnectionFailure'
@@ -37,7 +38,7 @@ type PromiseWithResolve = ReturnType<typeof promiseWithResolve>
 
 export interface ZRowUpdateEvent {
 	type: 'row_update'
-	row: ReplicatedRow
+	row: TlaRow
 	table: ReplicatedTable
 	event: ZEvent
 }
