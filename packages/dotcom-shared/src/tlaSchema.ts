@@ -268,22 +268,6 @@ export interface TlaAsset {
 	userId: string | null
 }
 
-// paddle_transactions is backend-only, not part of Zero schema
-export interface TlaPaddleTransaction {
-	eventId: string
-	transactionId: string
-	eventType: string
-	status: string
-	userId: string | null
-	processed: boolean
-	processedAt: number | null
-	processingError: string | null
-	eventData: Record<string, unknown>
-	occurredAt: number
-	receivedAt: number
-	updatedAt: number
-}
-
 export interface DB {
 	file: TlaFile
 	file_state: TlaFileState
@@ -293,7 +277,6 @@ export interface DB {
 	group_file: TlaGroupFile
 	user_mutation_number: TlaUserMutationNumber
 	asset: TlaAsset
-	paddle_transactions: TlaPaddleTransaction
 }
 
 export const schema = createSchema({

@@ -72,8 +72,6 @@ export default defineConfig((env) => ({
 		'process.env.IMAGE_WORKER': urlOrLocalFallback(env.mode, process.env.IMAGE_WORKER, 8786),
 		'process.env.TLDRAW_ENV': JSON.stringify(process.env.TLDRAW_ENV ?? 'development'),
 		'process.env.TLDRAW_LICENSE': JSON.stringify(process.env.TLDRAW_LICENSE ?? ''),
-		'process.env.PADDLE_CLIENT_TOKEN': JSON.stringify(process.env.PADDLE_CLIENT_TOKEN ?? ''),
-		'process.env.PADDLE_ENVIRONMENT': JSON.stringify(process.env.PADDLE_ENVIRONMENT ?? 'sandbox'),
 		// Fall back to staging DSN for local develeopment, although you still need to
 		// modify the env check in 'sentry.client.config.ts' to get it reporting errors
 		'process.env.SENTRY_DSN': JSON.stringify(
