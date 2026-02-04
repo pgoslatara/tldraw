@@ -17,6 +17,9 @@ method = "GET"
 timeout = "5s"
 path = "/keepalive"
 
+[restart]
+policy = "always"
+
 [[vm]]
 memory = "1gb"
 cpu_kind = "shared"
