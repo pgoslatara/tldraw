@@ -408,6 +408,24 @@ test.describe('Actions on shapes', () => {
 
 		/* ---------------------- Misc ---------------------- */
 
+		// These actions require selected shapes to run
+
+		// First verify they don't fire when nothing is selected
+		await page.keyboard.press('Escape') // deselect all
+		const prevEvent = await page.evaluate(() => __tldraw_ui_event)
+
+		await page.keyboard.press('Shift+l')
+		expect(await page.evaluate(() => __tldraw_ui_event)).toMatchObject(prevEvent)
+
+		await page.keyboard.press('Control+Shift+Alt+=')
+		expect(await page.evaluate(() => __tldraw_ui_event)).toMatchObject(prevEvent)
+
+		await page.keyboard.press('Control+Shift+Alt+-')
+		expect(await page.evaluate(() => __tldraw_ui_event)).toMatchObject(prevEvent)
+
+		// Now select shapes and verify the actions fire
+		await page.keyboard.press('Control+a')
+
 		// toggle lock
 		await page.keyboard.press('Shift+l')
 		expect(await page.evaluate(() => __tldraw_ui_event)).toMatchObject({
