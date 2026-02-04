@@ -119,9 +119,6 @@
   "335defdafe": {
     "translation": "Si us plau, prova d'actualitzar la pàgina."
   },
-  "34140869c6": {
-    "translation": "Un grup de fades arriba al sorteig durant el mes de desembre. Si us plau, torneu a consultar l'1 de desembre."
-  },
   "344a7f427f": {
     "translation": "Editor"
   },
@@ -286,9 +283,6 @@
   },
   "6910bbdc82": {
     "translation": "Nom de la fada"
-  },
-  "695c3e899d": {
-    "translation": "Depurar fades"
   },
   "6a26f54883": {
     "translation": "Ajuda"
@@ -647,9 +641,6 @@
   },
   "d9100f3e10": {
     "translation": "Entra aquí per veure el contingut"
-  },
-  "d9bfb9789a": {
-    "translation": "Habilita les fades"
   },
   "d9e35d0f55": {
     "translation": "Heu arribat al nombre màxim de grups. Heu de suprimir els grups antics abans de crear-ne de nous."
